@@ -555,6 +555,91 @@ p.lede { color: var(--ink-2); max-width: 66ch; font-size: 18px; margin: 0 0 8px;
   .lightbox-prev, .lightbox-next { width: 40px; height: 40px; }
 }
 
+/* Share modal */
+.share-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(10, 9, 7, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.share-modal[hidden] { display: none; }
+.share-modal-card {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 92vw;
+  max-height: 90vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.share-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.share-modal-close:hover { border-color: var(--accent); color: var(--accent); }
+.share-modal-title {
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+  text-align: center;
+}
+.share-modal-qr {
+  max-width: min(320px, 78vw);
+  height: auto;
+  border-radius: 12px;
+}
+.share-modal-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.share-modal-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.share-modal-actions button:hover { border-color: var(--accent); color: var(--accent); }
+.share-modal-actions button.copied { border-color: var(--ok); color: var(--ok); }
+.share-modal-hint {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  text-align: center;
+  max-width: 40ch;
+}
+
 /* Updates timeline */
 .timeline { margin-top: 28px; max-width: 70ch; }
 .entry {

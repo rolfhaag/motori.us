@@ -10,42 +10,130 @@
     });
   });
 
-  /* ---------- Share link (copy this page's canonical URL) ---------- */
-  document.querySelectorAll('[data-share-url]').forEach(function (btn) {
-    var labelEl = btn.querySelector('.share-link-label');
-    var original = labelEl ? labelEl.textContent : btn.textContent;
-    var resetTimer = null;
+  /* ---------- Share (opens a modal with QR + copy-link + download) ---------- */
+  function copyText(text, done) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+    } else {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        done(ok);
+      } catch (e) { done(false); }
+    }
+  }
 
-    function setLabel(text, copied) {
-      if (labelEl) { labelEl.textContent = text; } else { btn.textContent = text; }
-      btn.classList.toggle('copied', !!copied);
+  function openShareModal(url, name) {
+    var overlay = document.createElement('div');
+    overlay.className = 'share-modal';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+
+    var card = document.createElement('div');
+    card.className = 'share-modal-card';
+
+    var closeBtn = document.createElement('button');
+    closeBtn.className = 'share-modal-close';
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.textContent = '×';
+
+    var title = document.createElement('p');
+    title.className = 'share-modal-title';
+    title.textContent = name ? ('Share ' + name) : 'Share this page';
+
+    card.appendChild(closeBtn);
+    card.appendChild(title);
+
+    var svg = null;
+    try {
+      svg = window.motoriQR.buildShareSVG({ url: url, name: name });
+      svg.classList.add('share-modal-qr');
+      card.appendChild(svg);
+    } catch (e) {
+      var fallback = document.createElement('p');
+      fallback.className = 'share-modal-hint';
+      fallback.textContent = 'QR code unavailable — you can still copy the link below.';
+      card.appendChild(fallback);
     }
 
+    var actions = document.createElement('div');
+    actions.className = 'share-modal-actions';
+
+    var copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.textContent = 'Copy link';
+
+    var downloadBtn = document.createElement('button');
+    downloadBtn.type = 'button';
+    downloadBtn.textContent = 'Download SVG';
+    if (!svg) downloadBtn.disabled = true;
+
+    actions.appendChild(copyBtn);
+    actions.appendChild(downloadBtn);
+    card.appendChild(actions);
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    var copyResetTimer = null;
+    copyBtn.addEventListener('click', function () {
+      clearTimeout(copyResetTimer);
+      copyText(url, function (ok) {
+        copyBtn.textContent = ok ? 'Link copied!' : 'Copy failed';
+        copyBtn.classList.toggle('copied', ok);
+        copyResetTimer = setTimeout(function () {
+          copyBtn.textContent = 'Copy link';
+          copyBtn.classList.remove('copied');
+        }, 1800);
+      });
+    });
+
+    downloadBtn.addEventListener('click', function () {
+      if (!svg) return;
+      var serializer = new XMLSerializer();
+      var svgString = serializer.serializeToString(svg);
+      if (svgString.indexOf('xmlns=') === -1) {
+        svgString = svgString.replace('<svg', '<svg xmlns="' + NS_SVG + '"');
+      }
+      var blob = new Blob([svgString], { type: 'image/svg+xml' });
+      var blobUrl = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var slug = (name || 'motori-us-share').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      a.href = blobUrl;
+      a.download = (slug || 'motori-us-share') + '-qr.svg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 1000);
+    });
+
+    function close() {
+      document.removeEventListener('keydown', onKeydown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+    function onKeydown(e) {
+      if (e.key === 'Escape') close();
+    }
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) close();
+    });
+    document.addEventListener('keydown', onKeydown);
+  }
+
+  var NS_SVG = 'http://www.w3.org/2000/svg';
+
+  document.querySelectorAll('[data-share-url]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var url = btn.getAttribute('data-share-url');
-      clearTimeout(resetTimer);
-
-      function done(ok) {
-        setLabel(ok ? 'Link copied!' : 'Copy failed', ok);
-        resetTimer = setTimeout(function () { setLabel(original, false); }, 1800);
-      }
-
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(function () { done(true); }, function () { done(false); });
-      } else {
-        try {
-          var ta = document.createElement('textarea');
-          ta.value = url;
-          ta.style.position = 'fixed';
-          ta.style.opacity = '0';
-          document.body.appendChild(ta);
-          ta.focus();
-          ta.select();
-          var ok = document.execCommand('copy');
-          document.body.removeChild(ta);
-          done(ok);
-        } catch (e) { done(false); }
-      }
+      openShareModal(btn.getAttribute('data-share-url'), btn.getAttribute('data-share-name') || '');
     });
   });
 
