@@ -204,6 +204,23 @@
     color: var(--ink-2);
     background: var(--card);
   }
+  .share-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 18px;
+    padding: 9px 16px;
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    background: none;
+    color: var(--ink-2);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .share-link:hover { border-color: var(--accent); color: var(--accent); }
+  .share-link.copied { border-color: var(--ok); color: var(--ok); }
+  .builderhead .share-link { margin-top: 2px; align-self: flex-start; }
   .hero-photo {
     margin-top: clamp(28px, 4vw, 44px);
     border-radius: 8px;
@@ -811,6 +828,10 @@
         <p class="eyebrow">Builder profile</p>
         <h1 class="title mid">Mahlzeit Motorsport</h1>
         <p class="blurb">A California builder documenting every restomod as it happens: inspection findings, part numbers, and the reasoning behind every decision.</p>
+        <button class="share-link" type="button" data-share-url="https://www.motori.us/builder/mahlzeit-motorsport.html">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-3.8M8.6 13.5l6.8 3.8"/></svg>
+          <span class="share-link-label">Copy share link</span>
+        </button>
       </div>
     </section>
 
@@ -879,6 +900,10 @@
           <span class="chip">Zender flares</span>
           <span class="chip">Alpina Classic C88</span>
         </div>
+        <button class="share-link" type="button" data-share-url="https://www.motori.us/build/e9-3-0cs.html">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-3.8M8.6 13.5l6.8 3.8"/></svg>
+          <span class="share-link-label">Copy share link</span>
+        </button>
       </div>
       <div class="hero-photo">
         <img src="images/e9-front.jpg" alt="1971 BMW 3.0CS, front three-quarter">
@@ -1210,6 +1235,45 @@
     el.addEventListener('click', function () {
       var target = document.getElementById(el.getAttribute('data-scrollto'));
       if (target) target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    });
+  });
+
+  /* ---------- Share link (copy the crawler-friendly build URL) ---------- */
+  document.querySelectorAll('[data-share-url]').forEach(function (btn) {
+    var labelEl = btn.querySelector('.share-link-label');
+    var original = labelEl ? labelEl.textContent : btn.textContent;
+    var resetTimer = null;
+
+    function setLabel(text, copied) {
+      if (labelEl) { labelEl.textContent = text; } else { btn.textContent = text; }
+      btn.classList.toggle('copied', !!copied);
+    }
+
+    btn.addEventListener('click', function () {
+      var url = btn.getAttribute('data-share-url');
+      clearTimeout(resetTimer);
+
+      function done(ok) {
+        setLabel(ok ? 'Link copied!' : 'Copy failed', ok);
+        resetTimer = setTimeout(function () { setLabel(original, false); }, 1800);
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () { done(true); }, function () { done(false); });
+      } else {
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = url;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          var ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          done(ok);
+        } catch (e) { done(false); }
+      }
     });
   });
 
