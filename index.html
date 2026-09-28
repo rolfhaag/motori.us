@@ -1,3 +1,8 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>motori.us</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -192,6 +197,7 @@
   /* ---------- Sections ---------- */
   main section { padding: clamp(48px, 7vw, 84px) 0; border-top: 1px solid var(--line); }
   main section.tight { padding-top: 0; border-top: none; }
+  main section.section-compact { padding: clamp(28px, 4vw, 44px) 0; }
   .kicker {
     font-family: var(--mono);
     font-size: 13px;
@@ -605,7 +611,7 @@
   @media (max-width: 700px) { .embedrow { grid-template-columns: 1fr; } }
   .embedcol { min-width: 0; display: flex; flex-direction: column; }
   .embedcol .feed-label { justify-content: center; }
-  .embedcol .embed-holder { display: flex; justify-content: center; }
+  .embedcol .embed-holder { display: flex; justify-content: center; max-width: 100%; overflow-x: auto; }
   .embed-note {
     margin-top: 20px;
     font-size: 13px;
@@ -644,6 +650,8 @@
 
   @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
+</head>
+<body>
 
 <div class="stripe"></div>
 
@@ -788,7 +796,7 @@
       </div>
     </section>
 
-    <section id="builder-builds">
+    <section id="builder-builds" class="section-compact">
       <div class="wrap">
         <p class="kicker">The roster</p>
         <h2 class="h">Builds</h2>
@@ -810,7 +818,7 @@
       </div>
     </section>
 
-    <section id="builder-follow">
+    <section id="builder-follow" class="section-compact">
       <div class="wrap">
         <p class="kicker">Watch it happen</p>
         <h2 class="h">Follow along</h2>
@@ -835,7 +843,6 @@
             </div>
           </div>
         </div>
-        <p class="embed-note">Live embeds render once this page is on its own domain. In this preview, each platform's embed script is blocked by the sandbox, so you'll see the plain profile link above until it's deployed.</p>
       </div>
     </section>
   </div>
@@ -1307,3 +1314,5 @@
 </script>
 <script async src="//www.instagram.com/embed.js"></script>
 <script async src="https://www.tiktok.com/embed.js"></script>
+</body>
+</html>
