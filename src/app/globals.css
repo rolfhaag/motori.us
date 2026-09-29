@@ -1,0 +1,7 @@
+/* Intentionally minimal — the site's actual design lives in
+   /public/assets/site.css (ported as-is from the static site), loaded via
+   a <link> tag in the root layout. This file only resets Next.js's
+   create-next-app defaults so they don't fight with it. */
+* {
+  box-sizing: border-box;
+}
