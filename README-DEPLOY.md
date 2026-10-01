@@ -22,9 +22,19 @@ push above will trigger a deploy automatically. Two things to check in the
 Vercel dashboard first (Project Settings):
 
 - **Framework Preset** should auto-detect as "Next.js" once it sees this
-  code (it previously would have been "Other" for the static files).
+  code (it previously would have been "Other" for the static files). **It
+  doesn't always auto-detect on an existing project that was previously set
+  to "Other"** — check Project Settings -> Build and Deployment ->
+  Framework Preset yourself and set it to "Next.js" if it still says
+  "Other". A deploy under the wrong preset will report "Ready" and look
+  successful, but only serves the static files in `public/` (check the
+  deployment's **Output** tab — if it shows just `assets/`/`images/` with
+  no route/function entries, this is the cause). After changing the
+  preset, trigger a fresh **Redeploy** with the build cache unchecked —
+  changing the setting alone doesn't rebuild the existing deployment.
 - **Build Command** / **Output Directory** can stay on their Next.js
-  defaults — don't need to set these manually.
+  defaults (Override toggles switched off) — don't need to set these
+  manually.
 
 ## 3. Set environment variables in Vercel
 
