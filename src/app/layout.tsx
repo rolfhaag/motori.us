@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import AppProviders from "@/components/AppProviders";
 import AuthButton from "@/components/AuthButton";
+import { versionedAsset } from "@/lib/assetVersion";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
-        <link rel="stylesheet" href="/assets/site.css" />
+        <link rel="stylesheet" href={versionedAsset("site.css")} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { versionedAsset } from "@/lib/assetVersion";
 import { loadLegacyPage } from "@/lib/loadLegacyPage";
 
 const data = loadLegacyPage("home.html");
@@ -39,7 +40,7 @@ export default function HomePage() {
         {LEGACY_HASH_REDIRECT}
       </Script>
       <div dangerouslySetInnerHTML={{ __html: data.bodyHtml }} />
-      <Script src="/assets/site.js" strategy="afterInteractive" />
+      <Script src={versionedAsset("site.js")} strategy="afterInteractive" />
     </>
   );
 }

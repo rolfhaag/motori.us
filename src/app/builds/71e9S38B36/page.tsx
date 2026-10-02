@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { versionedAsset } from "@/lib/assetVersion";
 import { loadLegacyPage } from "@/lib/loadLegacyPage";
 
 const data = loadLegacyPage("build-71e9S38B36.html");
@@ -27,9 +28,9 @@ export default function BuildPage() {
   return (
     <>
       <div dangerouslySetInnerHTML={{ __html: data.bodyHtml }} />
-      <Script src="/assets/qrcode.min.js" strategy="afterInteractive" />
-      <Script src="/assets/qr.js" strategy="afterInteractive" />
-      <Script src="/assets/site.js" strategy="afterInteractive" />
+      <Script src={versionedAsset("qrcode.min.js")} strategy="afterInteractive" />
+      <Script src={versionedAsset("qr.js")} strategy="afterInteractive" />
+      <Script src={versionedAsset("site.js")} strategy="afterInteractive" />
     </>
   );
 }

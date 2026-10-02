@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { versionedAsset } from "@/lib/assetVersion";
 import { loadLegacyPage } from "@/lib/loadLegacyPage";
 
 const data = loadLegacyPage("about.html");
@@ -27,7 +28,7 @@ export default function AboutPage() {
   return (
     <>
       <div dangerouslySetInnerHTML={{ __html: data.bodyHtml }} />
-      <Script src="/assets/site.js" strategy="afterInteractive" />
+      <Script src={versionedAsset("site.js")} strategy="afterInteractive" />
     </>
   );
 }
