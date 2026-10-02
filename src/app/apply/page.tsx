@@ -363,7 +363,7 @@ export default function ApplyPage() {
                         : "Submit"}
                   </button>
                   <button
-                    className="btn-secondary"
+                    className="btn-secondary btn-cancel"
                     type="button"
                     disabled={saving !== null}
                     onClick={cancelApplication}

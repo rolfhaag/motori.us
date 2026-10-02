@@ -192,7 +192,7 @@ export default function AuthButton() {
               className="account-menu-item"
               style={menuItemStyle}
               role="menuitem"
-              onMouseDown={() => setOpen(false)}
+              onClick={() => setOpen(false)}
             >
               Admin dashboard
             </a>

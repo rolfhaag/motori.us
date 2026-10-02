@@ -120,7 +120,11 @@ header.site {
   background: var(--accent);
   border-radius: 100px;
   padding: 8px 18px;
-  border-bottom: none;
+  /* A solid gold fill with no edge reads fine against the paper
+     background, but in dark mode it was blending into the page on
+     mobile with no visible button outline. A thin border keyed to the
+     fill's own text color gives it a crisp edge in both themes. */
+  border: 1px solid var(--accent-ink);
 }
 .navright a.nav-cta:hover { opacity: 0.88; color: var(--accent-ink); }
 /* #auth-slot holds a portaled login pill or account avatar (see
@@ -207,9 +211,12 @@ h1.title i { font-style: italic; font-weight: 500; color: var(--accent); }
   gap: 9px;
   margin-top: 18px;
   padding: 8px 18px 8px 8px;
-  border: 1px solid var(--line);
+  /* A tinted-gold fill, not the plain var(--card) the spec chips above it
+     use, so Share doesn't read as just another chip in that row -- it's
+     an action, not a label. */
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
   border-radius: 100px;
-  background: var(--card);
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
   color: var(--ink);
   font-size: 13.5px;
   font-weight: 600;
@@ -222,12 +229,12 @@ h1.title i { font-style: italic; font-weight: 500; color: var(--accent); }
   height: 28px;
   padding: 6px;
   border-radius: 50%;
-  background: var(--paper-2);
+  background: var(--card);
   color: var(--accent);
 }
-.share-link:hover { border-color: var(--accent); background: var(--paper-2); transform: translateY(-1px); }
+.share-link:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 24%, var(--card)); transform: translateY(-1px); }
 .share-link:hover svg { background: var(--accent); color: var(--accent-ink); }
-.share-link.copied { border-color: var(--ok); color: var(--ok); }
+.share-link.copied { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, var(--card)); }
 .share-link.copied svg { background: var(--ok); color: #fff; }
 .builderhead .share-link { margin-top: 2px; align-self: flex-start; }
 .hero-photo {
@@ -856,11 +863,20 @@ footer .fmono { font-family: var(--mono); }
 .status-banner.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--card)); }
 .status-banner.bad .label { color: var(--bad); }
 
-.photo-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+/* Three tiles per row at any width (percentage-based, not a fixed px size)
+   so a narrow phone viewport doesn't strand the "+ Add" tile alone on its
+   own row with a big gap next to it -- which is what a fixed 96px tile did
+   once only 2 fit per row. */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+  max-width: 340px;
+}
 .photo-thumb {
   position: relative;
-  width: 96px;
-  height: 96px;
+  aspect-ratio: 1;
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -881,8 +897,7 @@ footer .fmono { font-family: var(--mono); }
   line-height: 1;
 }
 .photo-add {
-  width: 96px;
-  height: 96px;
+  aspect-ratio: 1;
   border-radius: 6px;
   border: 1px dashed var(--line);
   display: flex;
@@ -896,6 +911,28 @@ footer .fmono { font-family: var(--mono); }
 }
 .photo-add:hover { border-color: var(--accent); color: var(--accent); }
 .form-error { color: var(--bad); font-size: 14px; margin-top: 16px; }
+
+/* Form controls: iOS/Android apply their own chrome (rounded corners,
+   inner shadow, default button gradient) to inputs, textareas and buttons
+   unless it's explicitly turned off, which fought with our own styling on
+   mobile. */
+.field input[type="text"],
+.field textarea,
+.btn-primary,
+.btn-secondary {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+@media (max-width: 480px) {
+  /* Stacked, full-width actions read much better than three buttons
+     wrapping onto uneven rows, with Cancel's margin-left:auto stranding it
+     alone on its own line. */
+  .btn-row { flex-direction: column; align-items: stretch; }
+  .btn-row .btn-primary,
+  .btn-row .btn-secondary { width: 100%; justify-content: center; }
+  .btn-row .btn-cancel { margin-left: 0 !important; order: 3; }
+}
 
 /* ---------- Phase 2: admin tables ---------- */
 .admin-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
