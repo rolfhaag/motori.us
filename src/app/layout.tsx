@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/next";
 import AppProviders from "@/components/AppProviders";
 import AuthButton from "@/components/AuthButton";
 import { versionedAsset } from "@/lib/assetVersion";
@@ -31,6 +32,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <AuthButton />
           {children}
         </AppProviders>
+        {/* No-ops until Analytics is switched on for this project in the
+            Vercel dashboard -- safe to ship ahead of flipping that on. */}
+        <Analytics />
       </body>
     </html>
   );
