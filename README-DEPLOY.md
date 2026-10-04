@@ -73,6 +73,10 @@ redeploy (Vercel does this automatically on the next push, or you can hit
      existing Admin account (`rolfjhaag@gmail.com`) an approved Builder
      profile under the `mahlzeit-motorsport` handle, so your own account
      can use the Submit Build flow. Safe to re-run.
+   - `0007_build_status_changes_requested.sql` — adds the
+     `'changes_requested'` build status (the Builder dashboard's "Needs
+     response" row). **Must be run as its own query**, same restriction as
+     `0004`.
 3. You only need to run each one once. Storage buckets for application
    photos and Build photos/documents are created automatically on first use
    — nothing to set up by hand for those.

@@ -3,7 +3,7 @@
 import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 
-type BuildStatus = "draft" | "submitted" | "denied" | "published";
+type BuildStatus = "draft" | "submitted" | "changes_requested" | "denied" | "published";
 
 interface DocEntry {
   path: string;
@@ -30,7 +30,20 @@ interface BuildRow {
 
 const MAX_PHOTOS = 30;
 const MAX_DOCS = 10;
-const EDITABLE: BuildStatus[] = ["draft", "denied"];
+
+// The status/action table the Builder dashboard is built around:
+//   approved (published)      -> View
+//   submitted                 -> View
+//   unsubmitted (draft)       -> Edit
+//   needs response (changes_requested) -> Edit
+//   denied                    -> View
+const STATUS_META: Record<BuildStatus, { label: string; action: "edit" | "view" }> = {
+  draft: { label: "Unsubmitted", action: "edit" },
+  submitted: { label: "Submitted", action: "view" },
+  changes_requested: { label: "Needs response", action: "edit" },
+  denied: { label: "Denied", action: "view" },
+  published: { label: "Approved", action: "view" },
+};
 
 function blankForm() {
   return {
@@ -48,6 +61,7 @@ function blankForm() {
     newDocuments: [] as File[],
     status: "draft" as BuildStatus,
     adminNotes: null as string | null,
+    slug: null as string | null,
   };
 }
 
@@ -59,6 +73,7 @@ export default function BuilderPage() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(blankForm());
   const [editing, setEditing] = useState(false);
+  const [viewOnly, setViewOnly] = useState(false);
   const [saving, setSaving] = useState<"save" | "submit" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState(false);
@@ -117,12 +132,13 @@ export default function BuilderPage() {
 
   function startNew() {
     setForm(blankForm());
+    setViewOnly(false);
     setEditing(true);
     setError(null);
     setLastSaved(false);
   }
 
-  function startEdit(b: BuildRow) {
+  function openBuild(b: BuildRow) {
     setForm({
       id: b.id,
       make: b.make ?? "",
@@ -138,7 +154,9 @@ export default function BuilderPage() {
       newDocuments: [],
       status: b.status,
       adminNotes: b.admin_notes,
+      slug: b.slug,
     });
+    setViewOnly(STATUS_META[b.status].action === "view");
     setEditing(true);
     setError(null);
     setLastSaved(false);
@@ -273,10 +291,36 @@ export default function BuilderPage() {
               <p className="lede">Loading…</p>
             ) : editing ? (
               <div className="formcard">
-                {form.status === "denied" && (
+                {form.status === "changes_requested" && (
                   <div className="status-banner warn">
-                    <span className="label">Changes requested</span>
+                    <span className="label">Needs response</span>
                     <span>{form.adminNotes}</span>
+                  </div>
+                )}
+                {form.status === "denied" && (
+                  <div className="status-banner bad">
+                    <span className="label">Denied</span>
+                    <span>{form.adminNotes}</span>
+                  </div>
+                )}
+                {form.status === "submitted" && (
+                  <div className="status-banner warn">
+                    <span className="label">Under review</span>
+                    <span>This build has been submitted and is awaiting review.</span>
+                  </div>
+                )}
+                {form.status === "published" && (
+                  <div className="status-banner ok">
+                    <span className="label">Approved</span>
+                    <span>This build is live on motori.us.</span>
+                    {form.slug && (
+                      <>
+                        {" "}
+                        <a className="cta-link" href={`/builds/${form.slug}/`}>
+                          View live &rarr;
+                        </a>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -286,6 +330,7 @@ export default function BuilderPage() {
                     id="make"
                     type="text"
                     value={form.make}
+                    disabled={viewOnly}
                     onChange={(e) => setForm((f) => ({ ...f, make: e.target.value }))}
                     placeholder="BMW"
                   />
@@ -296,6 +341,7 @@ export default function BuilderPage() {
                     id="model"
                     type="text"
                     value={form.model}
+                    disabled={viewOnly}
                     onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
                     placeholder="E9"
                   />
@@ -306,6 +352,7 @@ export default function BuilderPage() {
                     id="trim"
                     type="text"
                     value={form.trim}
+                    disabled={viewOnly}
                     onChange={(e) => setForm((f) => ({ ...f, trim: e.target.value }))}
                     placeholder="S38B36"
                   />
@@ -316,6 +363,7 @@ export default function BuilderPage() {
                     id="vin"
                     type="text"
                     value={form.vin}
+                    disabled={viewOnly}
                     onChange={(e) => setForm((f) => ({ ...f, vin: e.target.value }))}
                     placeholder="Chassis or VIN number"
                   />
@@ -325,18 +373,22 @@ export default function BuilderPage() {
                   <textarea
                     id="theme"
                     value={form.theme}
+                    disabled={viewOnly}
                     onChange={(e) => setForm((f) => ({ ...f, theme: e.target.value }))}
                     placeholder="Two sentences max -- a creative brief for the AI that drafts this car's page."
                   />
-                  <p className="hint">
-                    Two sentences max. This informs the AI-drafted page -- it isn&rsquo;t displayed verbatim.
-                  </p>
+                  {!viewOnly && (
+                    <p className="hint">
+                      Two sentences max. This informs the AI-drafted page -- it isn&rsquo;t displayed verbatim.
+                    </p>
+                  )}
                 </div>
                 <div className="field">
                   <label htmlFor="builderNotes">Notes to motori.us (optional)</label>
                   <textarea
                     id="builderNotes"
                     value={form.builderNotes}
+                    disabled={viewOnly}
                     onChange={(e) => setForm((f) => ({ ...f, builderNotes: e.target.value }))}
                     placeholder="Anything our team should know before reviewing this."
                   />
@@ -350,38 +402,41 @@ export default function BuilderPage() {
                     {form.existingPhotoUrls.map((url, i) => (
                       <div className="photo-thumb" key={form.existingPhotos[i]}>
                         <img src={url} alt="" />
-                        <button
-                          type="button"
-                          className="remove"
-                          aria-label="Remove photo"
-                          onClick={() =>
-                            setForm((f) => ({
-                              ...f,
-                              existingPhotos: f.existingPhotos.filter((_, idx) => idx !== i),
-                              existingPhotoUrls: f.existingPhotoUrls.filter((_, idx) => idx !== i),
-                            }))
-                          }
-                        >
-                          &times;
-                        </button>
+                        {!viewOnly && (
+                          <button
+                            type="button"
+                            className="remove"
+                            aria-label="Remove photo"
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                existingPhotos: f.existingPhotos.filter((_, idx) => idx !== i),
+                                existingPhotoUrls: f.existingPhotoUrls.filter((_, idx) => idx !== i),
+                              }))
+                            }
+                          >
+                            &times;
+                          </button>
+                        )}
                       </div>
                     ))}
-                    {form.newPhotos.map((file, i) => (
-                      <div className="photo-thumb" key={file.name + i}>
-                        <img src={URL.createObjectURL(file)} alt="" />
-                        <button
-                          type="button"
-                          className="remove"
-                          aria-label="Remove photo"
-                          onClick={() =>
-                            setForm((f) => ({ ...f, newPhotos: f.newPhotos.filter((_, idx) => idx !== i) }))
-                          }
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    ))}
-                    {totalPhotos < MAX_PHOTOS && (
+                    {!viewOnly &&
+                      form.newPhotos.map((file, i) => (
+                        <div className="photo-thumb" key={file.name + i}>
+                          <img src={URL.createObjectURL(file)} alt="" />
+                          <button
+                            type="button"
+                            className="remove"
+                            aria-label="Remove photo"
+                            onClick={() =>
+                              setForm((f) => ({ ...f, newPhotos: f.newPhotos.filter((_, idx) => idx !== i) }))
+                            }
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    {!viewOnly && totalPhotos < MAX_PHOTOS && (
                       <label className="photo-add">
                         + Add
                         <input
@@ -404,38 +459,41 @@ export default function BuilderPage() {
                     {form.existingDocuments.map((doc, i) => (
                       <div className="doc-chip" key={doc.path}>
                         <span className="doc-chip-name">{doc.filename}</span>
-                        <button
-                          type="button"
-                          className="remove"
-                          aria-label="Remove document"
-                          onClick={() =>
-                            setForm((f) => ({
-                              ...f,
-                              existingDocuments: f.existingDocuments.filter((_, idx) => idx !== i),
-                            }))
-                          }
-                        >
-                          &times;
-                        </button>
+                        {!viewOnly && (
+                          <button
+                            type="button"
+                            className="remove"
+                            aria-label="Remove document"
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                existingDocuments: f.existingDocuments.filter((_, idx) => idx !== i),
+                              }))
+                            }
+                          >
+                            &times;
+                          </button>
+                        )}
                       </div>
                     ))}
-                    {form.newDocuments.map((file, i) => (
-                      <div className="doc-chip" key={file.name + i}>
-                        <span className="doc-chip-name">{file.name}</span>
-                        <button
-                          type="button"
-                          className="remove"
-                          aria-label="Remove document"
-                          onClick={() =>
-                            setForm((f) => ({ ...f, newDocuments: f.newDocuments.filter((_, idx) => idx !== i) }))
-                          }
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    ))}
+                    {!viewOnly &&
+                      form.newDocuments.map((file, i) => (
+                        <div className="doc-chip" key={file.name + i}>
+                          <span className="doc-chip-name">{file.name}</span>
+                          <button
+                            type="button"
+                            className="remove"
+                            aria-label="Remove document"
+                            onClick={() =>
+                              setForm((f) => ({ ...f, newDocuments: f.newDocuments.filter((_, idx) => idx !== i) }))
+                            }
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
                   </div>
-                  {totalDocs < MAX_DOCS && (
+                  {!viewOnly && totalDocs < MAX_DOCS && (
                     <label className="doc-add">
                       + Add PDF
                       <input type="file" accept="application/pdf" multiple onChange={handleDocSelect} style={{ display: "none" }} />
@@ -447,12 +505,26 @@ export default function BuilderPage() {
                 {lastSaved && !error && <p className="hint">Saved.</p>}
 
                 <div className="btn-row">
-                  <button className="btn-secondary" type="button" disabled={saving !== null} onClick={() => submitForm("save")}>
-                    {saving === "save" ? "Saving…" : "Save"}
-                  </button>
-                  <button className="btn-primary" type="button" disabled={saving !== null} onClick={() => submitForm("submit")}>
-                    {saving === "submit" ? "Submitting…" : "Submit"}
-                  </button>
+                  {!viewOnly && (
+                    <>
+                      <button
+                        className="btn-secondary"
+                        type="button"
+                        disabled={saving !== null}
+                        onClick={() => submitForm("save")}
+                      >
+                        {saving === "save" ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn-primary"
+                        type="button"
+                        disabled={saving !== null}
+                        onClick={() => submitForm("submit")}
+                      >
+                        {saving === "submit" ? "Submitting…" : "Submit"}
+                      </button>
+                    </>
+                  )}
                   <button
                     className="btn-secondary btn-cancel"
                     type="button"
@@ -483,37 +555,34 @@ export default function BuilderPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {builds.map((b) => (
-                      <tr key={b.id}>
-                        <td>{[b.make, b.model, b.trim].filter(Boolean).join(" ") || "Untitled"}</td>
-                        <td>
-                          <span className={`badge ${b.status}`}>{b.status}</span>
-                        </td>
-                        <td>
-                          <div className="btn-row" style={{ marginTop: 0 }}>
-                            {EDITABLE.includes(b.status) ? (
-                              <button className="btn-secondary" type="button" onClick={() => startEdit(b)}>
-                                Edit
+                    {builds.map((b) => {
+                      const meta = STATUS_META[b.status];
+                      return (
+                        <tr key={b.id}>
+                          <td>{[b.make, b.model, b.trim].filter(Boolean).join(" ") || "Untitled"}</td>
+                          <td>
+                            <span className={`badge ${b.status}`}>{meta.label}</span>
+                          </td>
+                          <td>
+                            <div className="btn-row" style={{ marginTop: 0 }}>
+                              <button className="btn-secondary" type="button" onClick={() => openBuild(b)}>
+                                {meta.action === "edit" ? "Edit" : "View"}
                               </button>
-                            ) : (
-                              <button className="btn-secondary" type="button" onClick={() => startEdit(b)} disabled>
-                                {b.status === "submitted" ? "Under review" : "View"}
-                              </button>
-                            )}
-                            {b.status === "draft" && (
-                              <button className="btn-danger" type="button" onClick={() => cancelDraft(b.id)}>
-                                Delete
-                              </button>
-                            )}
-                            {b.status === "published" && b.slug && (
-                              <a className="cta-link" href={`/builds/${b.slug}/`}>
-                                View live &rarr;
-                              </a>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              {b.status === "draft" && (
+                                <button className="btn-danger" type="button" onClick={() => cancelDraft(b.id)}>
+                                  Delete
+                                </button>
+                              )}
+                              {b.status === "published" && b.slug && (
+                                <a className="cta-link" href={`/builds/${b.slug}/`}>
+                                  View live &rarr;
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {builds.length === 0 && (
                       <tr>
                         <td colSpan={3}>No builds yet. Start your first one above.</td>

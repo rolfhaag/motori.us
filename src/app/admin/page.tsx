@@ -23,6 +23,7 @@ interface Build {
   title: string;
   status: string;
   hidden: boolean;
+  admin_notes: string | null;
   created_at: string;
 }
 
@@ -61,6 +62,7 @@ export default function AdminPage() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [tab, setTab] = useState<Tab>("applications");
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
+  const [selectedBuild, setSelectedBuild] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -174,20 +176,25 @@ export default function AdminPage() {
     }
   }
 
-  async function decideBuild(id: string, action: "publish" | "deny" | "hide" | "unhide") {
+  async function decideBuild(
+    id: string,
+    action: "publish" | "deny_resubmit" | "deny_final" | "hide" | "unhide"
+  ) {
     setBusy(true);
     setError(null);
     try {
       const res = await authedFetch(`/api/admin/builds/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, notes }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
         return;
       }
+      setNotes("");
+      setSelectedBuild(null);
       await loadDashboard();
     } catch {
       setError("Something went wrong.");
@@ -383,64 +390,107 @@ export default function AdminPage() {
                 )}
 
                 {tab === "builds" && (
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Title</th>
-                        <th>Status</th>
-                        <th>Submitted</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboard.builds.map((build) => (
-                        <tr key={build.id}>
-                          <td>{build.title}</td>
-                          <td>
-                            <span className={`badge ${build.status}`}>{build.status}</span>
-                            {build.hidden && <span className="badge" style={{ marginLeft: 6 }}>hidden</span>}
-                          </td>
-                          <td>{fmtDate(build.created_at)}</td>
-                          <td>
-                            {build.status === "submitted" ? (
-                              <div className="btn-row" style={{ marginTop: 0 }}>
+                  <>
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Title</th>
+                          <th>Status</th>
+                          <th>Submitted</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashboard.builds.map((build) => (
+                          <tr
+                            key={build.id}
+                            className={`${build.status === "submitted" ? "clickable" : ""} ${
+                              selectedBuild === build.id ? "selected" : ""
+                            }`}
+                            onClick={() => {
+                              if (build.status !== "submitted") return;
+                              setSelectedBuild(build.id === selectedBuild ? null : build.id);
+                              setNotes("");
+                            }}
+                          >
+                            <td>{build.title}</td>
+                            <td>
+                              <span className={`badge ${build.status}`}>{build.status}</span>
+                              {build.hidden && <span className="badge" style={{ marginLeft: 6 }}>hidden</span>}
+                            </td>
+                            <td>{fmtDate(build.created_at)}</td>
+                            <td>
+                              {build.status === "published" && (
                                 <button
-                                  className="btn-primary"
+                                  className="btn-secondary"
                                   type="button"
                                   disabled={busy}
-                                  onClick={() => decideBuild(build.id, "publish")}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    decideBuild(build.id, build.hidden ? "unhide" : "hide");
+                                  }}
                                 >
-                                  Publish
+                                  {build.hidden ? "Unhide" : "Hide"}
                                 </button>
-                                <button
-                                  className="btn-danger"
-                                  type="button"
-                                  disabled={busy}
-                                  onClick={() => decideBuild(build.id, "deny")}
-                                >
-                                  Deny
-                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                        {dashboard.builds.length === 0 && (
+                          <tr>
+                            <td colSpan={4}>No build submissions yet.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+
+                    {selectedBuild &&
+                      (() => {
+                        const build = dashboard.builds.find((b) => b.id === selectedBuild);
+                        if (!build) return null;
+                        return (
+                          <div className="detail-panel">
+                            <h4>{build.title}</h4>
+                            {build.admin_notes && (
+                              <div className="detail-row">
+                                <span className="label">Previous admin note</span>
+                                {build.admin_notes}
                               </div>
-                            ) : build.status === "published" ? (
+                            )}
+                            <div className="field">
+                              <label>Note to Builder (required if requesting changes)</label>
+                              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+                            </div>
+                            <div className="btn-row">
+                              <button
+                                className="btn-primary"
+                                type="button"
+                                disabled={busy}
+                                onClick={() => decideBuild(build.id, "publish")}
+                              >
+                                Publish
+                              </button>
                               <button
                                 className="btn-secondary"
                                 type="button"
                                 disabled={busy}
-                                onClick={() => decideBuild(build.id, build.hidden ? "unhide" : "hide")}
+                                onClick={() => decideBuild(build.id, "deny_resubmit")}
                               >
-                                {build.hidden ? "Unhide" : "Hide"}
+                                Request changes
                               </button>
-                            ) : null}
-                          </td>
-                        </tr>
-                      ))}
-                      {dashboard.builds.length === 0 && (
-                        <tr>
-                          <td colSpan={4}>No build submissions yet.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                              <button
+                                className="btn-danger"
+                                type="button"
+                                disabled={busy}
+                                onClick={() => decideBuild(build.id, "deny_final")}
+                              >
+                                Deny
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                  </>
                 )}
 
                 {tab === "builders" && (

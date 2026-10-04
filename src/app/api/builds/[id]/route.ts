@@ -18,8 +18,10 @@ import {
 const MAX_UNDECIDED_SUBMISSIONS = 5;
 const THEME_MAX_LENGTH = 400;
 // Only a Build the Builder is still actively working can be edited --
-// under-review ('submitted') and live ('published') Builds are frozen here.
-const EDITABLE_STATUSES = ["draft", "denied"];
+// under-review ('submitted'), live ('published'), and terminally 'denied'
+// Builds are frozen here. 'changes_requested' ("needs response" on the
+// Builder dashboard) is Admin sending it back for a revision and resubmit.
+const EDITABLE_STATUSES = ["draft", "changes_requested"];
 
 /**
  * Save-or-submit an edit to an existing Build the caller owns. Mirrors
@@ -137,7 +139,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const finalPhotos: BuildPhoto[] = [...keptPhotos, ...newPhotoPaths.map((path) => ({ path }))];
   const finalDocs: BuildDocument[] = [...keptDocs, ...newDocs];
   const title = [make, model, trim].filter(Boolean).join(" ") || existing.title;
-  const status = action === "submit" ? "submitted" : existing.status === "denied" ? "draft" : existing.status;
+  const status =
+    action === "submit" ? "submitted" : existing.status === "changes_requested" ? "draft" : existing.status;
 
   const { error } = await supabase
     .from("builds")

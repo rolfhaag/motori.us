@@ -1054,7 +1054,7 @@ footer .fmono { font-family: var(--mono); }
   color: var(--ink-2);
   white-space: nowrap;
 }
-.badge.submitted, .badge.denied_resubmit { color: var(--warn); border-color: var(--warn); }
+.badge.submitted, .badge.denied_resubmit, .badge.changes_requested { color: var(--warn); border-color: var(--warn); }
 .badge.approved, .badge.published { color: var(--ok); border-color: var(--ok); }
 .badge.denied_final, .badge.denied, .badge.banned { color: var(--bad); border-color: var(--bad); }
 .badge.draft { color: var(--ink-2); }
