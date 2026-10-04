@@ -2,14 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireAdmin } from "@/lib/requireAdmin";
+import { assignBuildSlug } from "@/lib/buildSlug";
 
 type BuildAction = "publish" | "deny" | "hide" | "unhide";
 
-/**
- * Build submission review, structurally ready for Chunk C (the Submit Build
- * flow). Nothing creates `builds` rows yet, so this has no data to act on
- * until then, but Admin's review surface is in place.
- */
+/** Build submission review: Admin approves/denies a submitted Build, and
+ * hides/unhides one already published. Publishing assigns the public slug. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAdmin(req);
@@ -28,17 +26,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const supabase = getSupabaseAdmin();
 
   if (action === "publish" || action === "deny") {
-    const { data: build } = await supabase.from("builds").select("status").eq("id", id).maybeSingle();
+    const { data: build } = await supabase
+      .from("builds")
+      .select("status, slug, make, model, trim")
+      .eq("id", id)
+      .maybeSingle();
     if (!build) return NextResponse.json({ error: "Build not found." }, { status: 404 });
     if (build.status !== "submitted") {
       return NextResponse.json({ error: "This build has already been decided." }, { status: 409 });
     }
+
+    const slug =
+      action === "publish" && !build.slug
+        ? await assignBuildSlug(build.make, build.model, build.trim)
+        : build.slug;
+
     const { error } = await supabase
       .from("builds")
-      .update({ status: action === "publish" ? "published" : "denied", admin_notes: notes })
+      .update({
+        status: action === "publish" ? "published" : "denied",
+        admin_notes: notes,
+        ...(action === "publish" ? { slug } : {}),
+      })
       .eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, status: action === "publish" ? "published" : "denied" });
+    return NextResponse.json({ ok: true, status: action === "publish" ? "published" : "denied", slug });
   }
 
   if (action === "hide" || action === "unhide") {

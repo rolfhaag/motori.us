@@ -54,13 +54,24 @@ preview deployments to work the same way). After adding them, trigger a
 redeploy (Vercel does this automatically on the next push, or you can hit
 "Redeploy" on the latest deployment in the dashboard).
 
-## 4. Run the database migration in Supabase
+## 4. Run the database migrations in Supabase
 
 1. Supabase dashboard -> your project -> SQL Editor -> New query.
-2. Open `supabase/migrations/0001_init.sql` from this project, copy its
-   entire contents, paste into the SQL editor, and run it.
-3. This creates the `users` table with the `admin` / `builder` / `applicant`
-   roles. You only need to run this once.
+2. Run each file in `supabase/migrations/` **in filename order**, pasting
+   its entire contents and running it as its own query before moving to the
+   next one:
+   - `0001_init.sql` — creates `users` with the `admin` / `builder` /
+     `applicant` roles.
+   - `0002_phase2.sql` — applications, builders, and builds tables.
+   - `0003_build_vin.sql` — adds the `vin` column to `builds`.
+   - `0004_build_status_draft.sql` — adds the `'draft'` build status.
+     **Must be run as its own query, separate from `0005`** — Postgres
+     won't allow a transaction to both add an enum value and reference it.
+   - `0005_build_fields.sql` — adds `make` / `model` / `trim` / `theme` /
+     `builder_notes` columns to `builds` (the Submit Build form fields).
+3. You only need to run each one once. Storage buckets for application
+   photos and Build photos/documents are created automatically on first use
+   — nothing to set up by hand for those.
 
 ## 5. Log in as Admin
 

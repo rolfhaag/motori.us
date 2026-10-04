@@ -32,9 +32,12 @@ export async function GET(req: NextRequest) {
     .neq("status", "draft")
     .order("created_at", { ascending: true });
 
+  // Drafts aren't submitted yet -- nothing for Admin to act on, same as
+  // application drafts above.
   const { data: builds } = await supabase
     .from("builds")
     .select("*")
+    .neq("status", "draft")
     .order("created_at", { ascending: true });
 
   const { data: users } = await supabase

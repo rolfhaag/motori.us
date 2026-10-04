@@ -186,6 +186,17 @@ export default function AuthButton() {
               <div style={{ fontSize: 12, color: "#55503F", marginTop: 2 }}>{roleLabel}</div>
             )}
           </div>
+          {(role === "builder" || role === "admin") && (
+            <a
+              href="/builder"
+              className="account-menu-item"
+              style={menuItemStyle}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+            >
+              Builder dashboard
+            </a>
+          )}
           {role === "admin" && (
             <a
               href="/admin"
