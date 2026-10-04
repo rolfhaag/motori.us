@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 export default function AuthButton() {
   const { ready, authenticated, user, login, logout, getAccessToken } = usePrivy();
   const [role, setRole] = useState<string | null>(null);
+  const [builderHandle, setBuilderHandle] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -30,6 +31,7 @@ export default function AuthButton() {
   useEffect(() => {
     if (!authenticated) {
       setRole(null);
+      setBuilderHandle(null);
       return;
     }
     let cancelled = false;
@@ -42,9 +44,15 @@ export default function AuthButton() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-        if (!cancelled) setRole(data.role ?? null);
+        if (!cancelled) {
+          setRole(data.role ?? null);
+          setBuilderHandle(data.builderHandle ?? null);
+        }
       } catch {
-        if (!cancelled) setRole(null);
+        if (!cancelled) {
+          setRole(null);
+          setBuilderHandle(null);
+        }
       } finally {
         if (!cancelled) setSyncing(false);
       }
@@ -53,6 +61,36 @@ export default function AuthButton() {
       cancelled = true;
     };
   }, [authenticated, getAccessToken]);
+
+  // Builder-aware page enhancements: these touch markup that lives outside
+  // this component's own tree (the static legacy pages' nav-cta link and,
+  // on a Builder's own roster page, the dashed "Coming next" pending
+  // build-card) -- so they're applied as direct DOM edits here rather than
+  // through React, the same way the account pill portals into #auth-slot.
+  useEffect(() => {
+    if (!authenticated) return;
+    const canAddBuild = role === "builder" || role === "admin";
+    if (!canAddBuild) return;
+
+    document.querySelectorAll<HTMLAnchorElement>("a.nav-cta").forEach((el) => {
+      el.textContent = "Add a Build";
+      el.href = "/builder?new=1";
+    });
+
+    if (!builderHandle) return;
+    const currentPath = window.location.pathname.replace(/\/+$/, "");
+    const ownRosterPath = `/builders/${builderHandle}`;
+    if (currentPath !== ownRosterPath) return;
+
+    document.querySelectorAll<HTMLElement>(".buildcard.pending").forEach((el) => {
+      const link = document.createElement("a");
+      link.className = "buildcard pending add";
+      link.href = "/builder?new=1";
+      link.innerHTML =
+        '<span class="add-plus" aria-hidden="true">+</span><h4>Add a Build</h4><p>Start the record for your next car.</p>';
+      el.replaceWith(link);
+    });
+  }, [authenticated, role, builderHandle]);
 
   useEffect(() => {
     if (!open) return;

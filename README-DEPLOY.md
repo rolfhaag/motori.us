@@ -69,6 +69,10 @@ redeploy (Vercel does this automatically on the next push, or you can hit
      won't allow a transaction to both add an enum value and reference it.
    - `0005_build_fields.sql` — adds `make` / `model` / `trim` / `theme` /
      `builder_notes` columns to `builds` (the Submit Build form fields).
+   - `0006_seed_mahlzeit_builder.sql` — one-time data seed: gives your
+     existing Admin account (`rolfjhaag@gmail.com`) an approved Builder
+     profile under the `mahlzeit-motorsport` handle, so your own account
+     can use the Submit Build flow. Safe to re-run.
 3. You only need to run each one once. Storage buckets for application
    photos and Build photos/documents are created automatically on first use
    — nothing to set up by hand for those.

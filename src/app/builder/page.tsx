@@ -103,7 +103,16 @@ export default function BuilderPage() {
         setError("Couldn't verify your account.");
       }
       await loadBuilds();
+      // Arriving via the "Add a Build" nav link or the roster's "+" card
+      // (both link here with ?new=1) jumps straight into a blank form
+      // instead of landing on the list first. Read directly from the URL
+      // rather than useSearchParams, which would force this page out of
+      // static rendering for a one-time, client-only check.
+      if (new URLSearchParams(window.location.search).get("new") === "1") {
+        startNew();
+      }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, getAccessToken, loadBuilds]);
 
   function startNew() {

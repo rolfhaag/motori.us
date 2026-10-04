@@ -76,5 +76,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, role: existing?.role ?? role });
+  // Also returned here (not just /api/me) so the nav's builder-aware
+  // enhancements (AuthButton) don't need a second authenticated round-trip
+  // right after login just to learn the caller's handle.
+  const { data: builder } = await supabase
+    .from("builders")
+    .select("handle")
+    .eq("user_id", privyUserId)
+    .maybeSingle();
+
+  return NextResponse.json({
+    ok: true,
+    role: existing?.role ?? role,
+    builderHandle: builder?.handle ?? null,
+  });
 }
