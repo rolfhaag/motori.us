@@ -332,7 +332,7 @@ export default function BuilderPage() {
                     value={form.make}
                     disabled={viewOnly}
                     onChange={(e) => setForm((f) => ({ ...f, make: e.target.value }))}
-                    placeholder="BMW"
+                    placeholder="Make"
                   />
                 </div>
                 <div className="field">
@@ -343,7 +343,7 @@ export default function BuilderPage() {
                     value={form.model}
                     disabled={viewOnly}
                     onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
-                    placeholder="E9"
+                    placeholder="Model"
                   />
                 </div>
                 <div className="field">
@@ -354,7 +354,7 @@ export default function BuilderPage() {
                     value={form.trim}
                     disabled={viewOnly}
                     onChange={(e) => setForm((f) => ({ ...f, trim: e.target.value }))}
-                    placeholder="S38B36"
+                    placeholder="Trim"
                   />
                 </div>
                 <div className="field">

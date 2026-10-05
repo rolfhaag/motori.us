@@ -4,6 +4,7 @@ import Script from "next/script";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { BuildPhoto, signBuildPhotoUrls } from "@/lib/buildAssets";
 import { versionedAsset } from "@/lib/assetVersion";
+import { SITE_URL } from "@/lib/siteUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -51,14 +52,16 @@ export async function generateMetadata({
   const title = `${build.title} — motori.us`;
   const description =
     build.theme ?? `Documented build of a ${build.title}, logged as it progresses on motori.us.`;
-  const canonical = `https://www.motori.us/builds/${build.slug}/`;
+  const canonical = `${SITE_URL}/builds/${build.slug}/`;
+  const hasPhoto = (build.photos ?? []).length > 0;
+  const images = hasPhoto ? [`${SITE_URL}/builds/${build.slug}/og`] : undefined;
 
   return {
     title,
     description,
     alternates: { canonical },
-    openGraph: { title, description, url: canonical, type: "website" },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: { title, description, url: canonical, type: "website", images },
+    twitter: { card: hasPhoto ? "summary_large_image" : "summary", title, description, images },
   };
 }
 
@@ -79,10 +82,28 @@ export default async function DynamicBuildPage({ params }: { params: Promise<{ s
   const photoUrls = await signBuildPhotoUrls(build.photos ?? []);
   const [heroPhoto, ...restPhotos] = photoUrls;
 
+  // VIN is deliberately left out: it's slated to be gated behind a future
+  // Buyer/Browser role, so it must not leak into crawlable markup.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Vehicle",
+    name: build.title,
+    ...(build.make ? { manufacturer: { "@type": "Organization", name: build.make } } : {}),
+    ...(build.model ? { model: build.model } : {}),
+    ...(build.trim ? { vehicleConfiguration: build.trim } : {}),
+    ...(build.theme ? { description: build.theme } : {}),
+    ...(heroPhoto ? { image: `${SITE_URL}/builds/${build.slug}/og` } : {}),
+    url: `${SITE_URL}/builds/${build.slug}/`,
+  };
+
   const chips = [build.make, build.model, build.trim].filter(Boolean) as string[];
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
       <header className="site">
         <div className="navbar">
           <div className="navleft">
