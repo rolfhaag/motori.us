@@ -53,10 +53,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
+  if (existing.draft_status === "running") {
+    return NextResponse.json(
+      { error: "Your draft is being generated -- please wait until it finishes." },
+      { status: 409 }
+    );
+  }
+
   const form = await req.formData();
   const action = form.get("action");
   if (action !== "save" && action !== "submit") {
     return NextResponse.json({ error: "Invalid action." }, { status: 400 });
+  }
+  if (action === "submit" && !existing.draft_content) {
+    return NextResponse.json({ error: "Generate your page draft before submitting." }, { status: 400 });
   }
 
   const make = String(form.get("make") ?? "").trim();

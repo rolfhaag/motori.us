@@ -26,10 +26,15 @@ interface BuildRow {
   admin_notes: string | null;
   slug: string | null;
   created_at: string;
+  draft_status: "none" | "running" | "done" | "failed";
+  draft_error: string | null;
+  draft_runs: number;
+  draft_content: { hero?: { thesis?: string; specChips?: string[] }; baseline?: { glance?: unknown[]; detailed?: unknown[] }; roadmap?: unknown[]; updates?: unknown[] } | null;
 }
 
 const MAX_PHOTOS = 30;
 const MAX_DOCS = 10;
+const MAX_DRAFT_RUNS = 3; // first draft + 2 refreshes
 
 // The status/action table the Builder dashboard is built around:
 //   approved (published)      -> View
@@ -77,6 +82,14 @@ export default function BuilderPage() {
   const [saving, setSaving] = useState<"save" | "submit" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState(false);
+  const [draft, setDraft] = useState<{
+    status: BuildRow["draft_status"];
+    error: string | null;
+    runs: number;
+    content: BuildRow["draft_content"];
+  }>({ status: "none", error: null, runs: 0, content: null });
+  const [feedback, setFeedback] = useState("");
+  const [draftBusy, setDraftBusy] = useState(false);
 
   const authedFetch = useCallback(
     async (url: string, init?: RequestInit) => {
@@ -86,7 +99,7 @@ export default function BuilderPage() {
     [getAccessToken]
   );
 
-  const loadBuilds = useCallback(async () => {
+  const loadBuilds = useCallback(async (): Promise<BuildRow[]> => {
     setLoading(true);
     setError(null);
     try {
@@ -95,12 +108,14 @@ export default function BuilderPage() {
       if (!res.ok) {
         if (res.status === 403) setHasBuilderProfile(false);
         else setError(data.error ?? "Couldn't load your builds.");
-        return;
+        return [];
       }
       setHasBuilderProfile(true);
       setBuilds(data.builds ?? []);
+      return data.builds ?? [];
     } catch {
       setError("Couldn't load your builds.");
+      return [];
     } finally {
       setLoading(false);
     }
@@ -132,13 +147,16 @@ export default function BuilderPage() {
 
   function startNew() {
     setForm(blankForm());
+    setDraft({ status: "none", error: null, runs: 0, content: null });
+    setFeedback("");
     setViewOnly(false);
     setEditing(true);
     setError(null);
     setLastSaved(false);
   }
 
-  function openBuild(b: BuildRow) {
+  function applyRow(b: BuildRow) {
+    setDraft({ status: b.draft_status, error: b.draft_error, runs: b.draft_runs, content: b.draft_content });
     setForm({
       id: b.id,
       make: b.make ?? "",
@@ -156,11 +174,98 @@ export default function BuilderPage() {
       adminNotes: b.admin_notes,
       slug: b.slug,
     });
+  }
+
+  function openBuild(b: BuildRow) {
+    applyRow(b);
+    setFeedback("");
     setViewOnly(STATUS_META[b.status].action === "view");
     setEditing(true);
     setError(null);
     setLastSaved(false);
   }
+
+  const drafting = draft.status === "running";
+  const locked = viewOnly || drafting;
+  const hasDraft = Boolean(draft.content);
+  const runsLeft = Math.max(0, MAX_DRAFT_RUNS - draft.runs);
+
+  // Save the form without closing it, so a draft can be generated from
+  // exactly what's on screen. Returns the build's id.
+  async function saveInPlace(): Promise<string | null> {
+    const body = new FormData();
+    body.set("action", "save");
+    body.set("make", form.make);
+    body.set("model", form.model);
+    body.set("trim", form.trim);
+    body.set("vin", form.vin);
+    body.set("theme", form.theme);
+    body.set("builderNotes", form.builderNotes);
+    if (form.id) {
+      body.set("existingPhotos", JSON.stringify(form.existingPhotos));
+      body.set("existingDocuments", JSON.stringify(form.existingDocuments.map((d) => d.path)));
+    }
+    form.newPhotos.forEach((f) => body.append("newPhotos", f));
+    form.newDocuments.forEach((f) => body.append("newDocuments", f));
+    const res = await authedFetch(form.id ? `/api/builds/${form.id}` : "/api/builds", { method: "POST", body });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Something went wrong.");
+      return null;
+    }
+    const id: string = form.id ?? data.build.id;
+    const rows = await loadBuilds();
+    const row = rows.find((r) => r.id === id);
+    if (row) applyRow(row);
+    return id;
+  }
+
+  async function startDraft() {
+    setError(null);
+    setDraftBusy(true);
+    try {
+      const id = await saveInPlace();
+      if (!id) return;
+      const res = await authedFetch(`/api/builds/${id}/draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Couldn't start the draft.");
+        return;
+      }
+      setDraft((d) => ({ ...d, status: "running", error: null }));
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setDraftBusy(false);
+    }
+  }
+
+  // While a draft runs, poll until it settles, then pull the finished row.
+  useEffect(() => {
+    if (!drafting || !form.id) return;
+    const id = form.id;
+    const timer = setInterval(async () => {
+      try {
+        const res = await authedFetch(`/api/builds/${id}/draft`);
+        const data = await res.json();
+        if (res.ok && data.draft_status !== "running") {
+          clearInterval(timer);
+          const rows = await loadBuilds();
+          const row = rows.find((r) => r.id === id);
+          if (row) applyRow(row);
+          setFeedback("");
+        }
+      } catch {
+        /* keep polling */
+      }
+    }, 4000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drafting, form.id]);
 
   const totalPhotos = form.existingPhotos.length + form.newPhotos.length;
   const totalDocs = form.existingDocuments.length + form.newDocuments.length;
@@ -330,7 +435,7 @@ export default function BuilderPage() {
                     id="make"
                     type="text"
                     value={form.make}
-                    disabled={viewOnly}
+                    disabled={locked}
                     onChange={(e) => setForm((f) => ({ ...f, make: e.target.value }))}
                     placeholder="Make"
                   />
@@ -341,7 +446,7 @@ export default function BuilderPage() {
                     id="model"
                     type="text"
                     value={form.model}
-                    disabled={viewOnly}
+                    disabled={locked}
                     onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
                     placeholder="Model"
                   />
@@ -352,7 +457,7 @@ export default function BuilderPage() {
                     id="trim"
                     type="text"
                     value={form.trim}
-                    disabled={viewOnly}
+                    disabled={locked}
                     onChange={(e) => setForm((f) => ({ ...f, trim: e.target.value }))}
                     placeholder="Trim"
                   />
@@ -363,7 +468,7 @@ export default function BuilderPage() {
                     id="vin"
                     type="text"
                     value={form.vin}
-                    disabled={viewOnly}
+                    disabled={locked}
                     onChange={(e) => setForm((f) => ({ ...f, vin: e.target.value }))}
                     placeholder="Chassis or VIN number"
                   />
@@ -373,7 +478,7 @@ export default function BuilderPage() {
                   <textarea
                     id="theme"
                     value={form.theme}
-                    disabled={viewOnly}
+                    disabled={locked}
                     onChange={(e) => setForm((f) => ({ ...f, theme: e.target.value }))}
                     placeholder="Two sentences max -- a creative brief for the AI that drafts this car's page."
                   />
@@ -388,7 +493,7 @@ export default function BuilderPage() {
                   <textarea
                     id="builderNotes"
                     value={form.builderNotes}
-                    disabled={viewOnly}
+                    disabled={locked}
                     onChange={(e) => setForm((f) => ({ ...f, builderNotes: e.target.value }))}
                     placeholder="Anything our team should know before reviewing this."
                   />
@@ -501,6 +606,64 @@ export default function BuilderPage() {
                   )}
                 </div>
 
+                {!viewOnly && (
+                  <div className="field">
+                    <label>Page draft</label>
+                    {draft.status === "failed" && draft.error && (
+                      <div className="status-banner warn">
+                        <span className="label">Needs attention</span>
+                        <span>{draft.error}</span>
+                      </div>
+                    )}
+                    {drafting ? (
+                      <p className="hint">
+                        Drafting your page from your photos and documents. This can take a minute or two -- you can
+                        leave this open.
+                      </p>
+                    ) : hasDraft ? (
+                      <div className="doc-chip" style={{ display: "block" }}>
+                        <p style={{ margin: "0 0 6px" }}>{draft.content?.hero?.thesis}</p>
+                        <p className="hint" style={{ margin: 0 }}>
+                          Draft ready: {draft.content?.baseline?.glance?.length ?? 0} at-a-glance facts,{" "}
+                          {draft.content?.baseline?.detailed?.length ?? 0} detailed sections,{" "}
+                          {draft.content?.roadmap?.length ?? 0} roadmap items.{" "}
+                          {runsLeft > 0
+                            ? `${runsLeft} update${runsLeft > 1 ? "s" : ""} left.`
+                            : "No updates left."}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="hint">
+                        Fill in the details above and add photos (and any PDFs), then generate your page draft. It must
+                        be generated before you can submit.
+                      </p>
+                    )}
+                    {hasDraft && runsLeft > 0 && !drafting && (
+                      <>
+                        <textarea
+                          value={feedback}
+                          maxLength={600}
+                          onChange={(e) => setFeedback(e.target.value)}
+                          placeholder="What should change? You can adjust the wording within each section and the photo order -- the page layout itself is fixed."
+                          style={{ marginTop: 10 }}
+                        />
+                      </>
+                    )}
+                    {(!hasDraft || runsLeft > 0) && (
+                      <div className="btn-row" style={{ marginTop: 12 }}>
+                        <button
+                          className="btn-secondary"
+                          type="button"
+                          disabled={draftBusy || drafting || saving !== null}
+                          onClick={startDraft}
+                        >
+                          {draftBusy || drafting ? "Drafting…" : hasDraft ? "Update Draft" : "Generate Draft"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {error && <p className="form-error">{error}</p>}
                 {lastSaved && !error && <p className="hint">Saved.</p>}
 
@@ -510,7 +673,7 @@ export default function BuilderPage() {
                       <button
                         className="btn-secondary"
                         type="button"
-                        disabled={saving !== null}
+                        disabled={saving !== null || drafting}
                         onClick={() => submitForm("save")}
                       >
                         {saving === "save" ? "Saving…" : "Save"}
@@ -518,7 +681,8 @@ export default function BuilderPage() {
                       <button
                         className="btn-primary"
                         type="button"
-                        disabled={saving !== null}
+                        disabled={saving !== null || drafting || !hasDraft}
+                        title={hasDraft ? undefined : "Generate your page draft first"}
                         onClick={() => submitForm("submit")}
                       >
                         {saving === "submit" ? "Submitting…" : "Submit"}

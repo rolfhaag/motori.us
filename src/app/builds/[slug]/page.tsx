@@ -5,6 +5,8 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { BuildPhoto, signBuildPhotoUrls } from "@/lib/buildAssets";
 import { versionedAsset } from "@/lib/assetVersion";
 import { SITE_URL } from "@/lib/siteUrl";
+import BuildPageView from "@/components/BuildPageView";
+import type { DraftContent } from "@/lib/buildDraft";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +53,9 @@ export async function generateMetadata({
 
   const title = `${build.title} — motori.us`;
   const description =
-    build.theme ?? `Documented build of a ${build.title}, logged as it progresses on motori.us.`;
+    (build.draft_content as DraftContent | null)?.hero?.thesis ||
+    build.theme ||
+    `Documented build of a ${build.title}, logged as it progresses on motori.us.`;
   const canonical = `${SITE_URL}/builds/${build.slug}/`;
   const hasPhoto = (build.photos ?? []).length > 0;
   const images = hasPhoto ? [`${SITE_URL}/builds/${build.slug}/og`] : undefined;
@@ -79,8 +83,13 @@ export default async function DynamicBuildPage({ params }: { params: Promise<{ s
   if (!build) notFound();
 
   const handle = await getBuilderHandle(build.builder_id);
-  const photoUrls = await signBuildPhotoUrls(build.photos ?? []);
-  const [heroPhoto, ...restPhotos] = photoUrls;
+  const photoEntries = (build.photos ?? []) as BuildPhoto[];
+  const photoUrls = await signBuildPhotoUrls(photoEntries);
+  const photos = photoUrls.map((url, i) => ({
+    url,
+    caption: photoEntries[i]?.caption,
+    category: photoEntries[i]?.category,
+  }));
 
   // VIN is deliberately left out: it's slated to be gated behind a future
   // Buyer/Browser role, so it must not leak into crawlable markup.
@@ -92,11 +101,9 @@ export default async function DynamicBuildPage({ params }: { params: Promise<{ s
     ...(build.model ? { model: build.model } : {}),
     ...(build.trim ? { vehicleConfiguration: build.trim } : {}),
     ...(build.theme ? { description: build.theme } : {}),
-    ...(heroPhoto ? { image: `${SITE_URL}/builds/${build.slug}/og` } : {}),
+    ...(photos.length ? { image: `${SITE_URL}/builds/${build.slug}/og` } : {}),
     url: `${SITE_URL}/builds/${build.slug}/`,
   };
-
-  const chips = [build.make, build.model, build.trim].filter(Boolean) as string[];
 
   return (
     <>
@@ -104,116 +111,12 @@ export default async function DynamicBuildPage({ params }: { params: Promise<{ s
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
-      <header className="site">
-        <div className="navbar">
-          <div className="navleft">
-            <a className="brand" href="/">
-              motori<em>.</em>us
-            </a>
-            {handle && (
-              <nav className="crumbs">
-                <span className="sep">/</span>
-                <a href={`/builders/${handle}/`}>{handle}</a>
-                <span className="sep">/</span>
-                <span className="here">{build.title}</span>
-              </nav>
-            )}
-          </div>
-          <nav className="navright">
-            <a href="/about/">About</a>
-            <a className="nav-cta" href="/apply/">
-              Be a Builder
-            </a>
-            <span id="auth-slot"></span>
-          </nav>
-        </div>
-      </header>
-
-      <main>
-        <section className="hero compact">
-          <div className="wrap">
-            <p className="eyebrow">{handle ?? "motori.us"}</p>
-            <h1 className="title mid">{build.title}</h1>
-            {build.theme && <p className="thesis">{build.theme}</p>}
-            {build.vin && (
-              <p className="vin">
-                <span className="vin-label">VIN</span>
-                <span className="vin-value">{build.vin}</span>
-              </p>
-            )}
-            {chips.length > 0 && (
-              <div className="heroSpecs">
-                {chips.map((c) => (
-                  <span className="chip" key={c}>
-                    {c}
-                  </span>
-                ))}
-              </div>
-            )}
-            <button
-              className="share-link"
-              type="button"
-              data-share-url={`https://www.motori.us/builds/${build.slug}/`}
-              data-share-name={build.title}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <path d="M8.6 10.5l6.8-3.8M8.6 13.5l6.8 3.8" />
-              </svg>
-              <span className="share-link-label">Share</span>
-            </button>
-          </div>
-          {heroPhoto && (
-            <div className="hero-photo">
-              <img src={heroPhoto} alt={build.title} />
-            </div>
-          )}
-        </section>
-
-        {restPhotos.length > 0 && (
-          <section id="gallery">
-            <div className="wrap">
-              <p className="kicker">Gallery</p>
-              <h2 className="h">Photos</h2>
-              <div className="gallery">
-                {restPhotos.map((url) => (
-                  <div className="photo" key={url}>
-                    <img src={url} alt={build.title} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        <section>
-          <div className="wrap">
-            <p className="kicker">Documentation</p>
-            <h2 className="h">More to come</h2>
-            <p className="lede">
-              This build&rsquo;s full write-up -- baseline condition, roadmap, and a working log of
-              updates -- is being prepared. Check back soon.
-            </p>
-          </div>
-        </section>
-
-        {handle && (
-          <div className="wrap backlink">
-            <a className="cta-link" href={`/builders/${handle}/`}>
-              &larr; Back to {handle}
-            </a>
-          </div>
-        )}
-      </main>
-
-      <footer>
-        <div className="wrap">
-          <span>motori.us: one open record for every build.</span>
-        </div>
-      </footer>
-
+      <BuildPageView
+        build={build}
+        draft={(build.draft_content as DraftContent | null) ?? null}
+        photos={photos}
+        handle={handle}
+      />
       <Script src={versionedAsset("qrcode.min.js")} strategy="afterInteractive" />
       <Script src={versionedAsset("qr.js")} strategy="afterInteractive" />
       <Script src={versionedAsset("site.js")} strategy="afterInteractive" />

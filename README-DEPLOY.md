@@ -48,8 +48,9 @@ Privy's and Supabase's own dashboards):
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase dashboard -> your project -> Settings -> API -> Project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase dashboard -> your project -> Settings -> API -> `service_role` secret key |
 | `ADMIN_SEED_EMAIL` | `rolfjhaag@gmail.com` (already set to this) |
+| `ANTHROPIC_API_KEY` | console.anthropic.com -> API Keys (needed for AI-drafted Build pages) |
 
-Set all five for the **Production** environment (and Preview, if you want
+Set all of these for the **Production** environment (and Preview, if you want
 preview deployments to work the same way). After adding them, trigger a
 redeploy (Vercel does this automatically on the next push, or you can hit
 "Redeploy" on the latest deployment in the dashboard).
@@ -77,6 +78,9 @@ redeploy (Vercel does this automatically on the next push, or you can hit
      `'changes_requested'` build status (the Builder dashboard's "Needs
      response" row). **Must be run as its own query**, same restriction as
      `0004`.
+   - `0008_seed_e9_build.sql` — registers the existing E9 page as a row under
+     your Builder so it shows in your dashboard.
+   - `0009_build_draft_state.sql` — AI draft state columns on `builds`.
 3. You only need to run each one once. Storage buckets for application
    photos and Build photos/documents are created automatically on first use
    — nothing to set up by hand for those.

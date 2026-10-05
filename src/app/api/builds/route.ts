@@ -13,10 +13,6 @@ import {
   uploadBuildPhoto,
 } from "@/lib/buildAssets";
 
-// Max 5 submitted-and-undecided Build submissions per Builder at once (see
-// the comment on builds.status in 0002_phase2.sql) -- enforced here rather
-// than as a DB constraint, since it's a count, not a uniqueness rule.
-const MAX_UNDECIDED_SUBMISSIONS = 5;
 const THEME_MAX_LENGTH = 400; // generous ceiling for "2 sentences max"
 
 /** Builder's own Builds -- every status, newest first. */
@@ -99,34 +95,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "submit") {
-    const missing = [
-      !make && "Make",
-      !model && "Model",
-      !trim && "Trim",
-      !vin && "VIN",
-      !theme && "Theme",
-    ].filter(Boolean);
-    if (missing.length > 0) {
-      return NextResponse.json({ error: `${missing.join(", ")} ${missing.length > 1 ? "are" : "is"} required.` }, { status: 400 });
-    }
-    if (newPhotoFiles.length < 1) {
-      return NextResponse.json({ error: "At least one photo is required." }, { status: 400 });
-    }
-
-    const supabase = getSupabaseAdmin();
-    const { count } = await supabase
-      .from("builds")
-      .select("id", { count: "exact", head: true })
-      .eq("builder_id", builderId)
-      .eq("status", "submitted");
-    if ((count ?? 0) >= MAX_UNDECIDED_SUBMISSIONS) {
-      return NextResponse.json(
-        {
-          error: `You already have ${MAX_UNDECIDED_SUBMISSIONS} submissions awaiting review. Please wait for a decision before submitting another.`,
-        },
-        { status: 409 }
-      );
-    }
+    // A new Build has no AI draft yet by definition: save it, generate the
+    // draft, then submit.
+    return NextResponse.json({ error: "Save this build and generate your page draft before submitting." }, { status: 400 });
   }
 
   let photoPaths: string[] = [];
@@ -140,7 +111,7 @@ export async function POST(req: NextRequest) {
 
   const photos: BuildPhoto[] = photoPaths.map((path) => ({ path }));
   const title = [make, model, trim].filter(Boolean).join(" ") || "Untitled Build";
-  const status = action === "submit" ? "submitted" : "draft";
+  const status = "draft";
 
   const supabase = getSupabaseAdmin();
   const { data: build, error } = await supabase
