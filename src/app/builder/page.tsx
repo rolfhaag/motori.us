@@ -2,6 +2,7 @@
 
 import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
+import DropZone from "@/components/DropZone";
 
 type BuildStatus = "draft" | "submitted" | "changes_requested" | "denied" | "published";
 
@@ -315,25 +316,64 @@ export default function BuilderPage() {
   const totalPhotos = form.existingPhotos.length + form.newPhotos.length;
   const totalDocs = form.existingDocuments.length + form.newDocuments.length;
 
-  function handlePhotoSelect(e: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
+  const IMAGE_EXT = /\.(jpe?g|png|webp|gif|heic|heif)$/i;
+
+  // Shared by the file picker and drag-and-drop. Windows sometimes reports an
+  // empty MIME type, so fall back to the file extension.
+  function addPhotos(picked: File[]) {
+    const files = picked.filter((f) => f.type.startsWith("image/") || IMAGE_EXT.test(f.name));
+    const skipped = picked.length - files.length;
+    if (files.length === 0) {
+      if (skipped > 0) setError("Those files aren't photos. Drop JPEG or PNG images here.");
+      return;
+    }
     if (totalPhotos + files.length > MAX_PHOTOS) {
       setError(`No more than ${MAX_PHOTOS} photos allowed.`);
       return;
     }
+    setError(skipped > 0 ? `Skipped ${skipped} file${skipped > 1 ? "s" : ""} that aren't photos.` : null);
     setForm((f) => ({ ...f, newPhotos: [...f.newPhotos, ...files] }));
-    e.target.value = "";
   }
 
-  function handleDocSelect(e: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []).filter((f) => f.type === "application/pdf");
+  function addDocs(picked: File[]) {
+    const files = picked.filter((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+    const skipped = picked.length - files.length;
+    if (files.length === 0) {
+      if (skipped > 0) setError("Only PDF documents can go here.");
+      return;
+    }
     if (totalDocs + files.length > MAX_DOCS) {
       setError(`No more than ${MAX_DOCS} documents allowed.`);
       return;
     }
+    setError(skipped > 0 ? `Skipped ${skipped} file${skipped > 1 ? "s" : ""} that aren't PDFs.` : null);
     setForm((f) => ({ ...f, newDocuments: [...f.newDocuments, ...files] }));
+  }
+
+  function handlePhotoSelect(e: ChangeEvent<HTMLInputElement>) {
+    addPhotos(Array.from(e.target.files ?? []));
     e.target.value = "";
   }
+
+  function handleDocSelect(e: ChangeEvent<HTMLInputElement>) {
+    addDocs(Array.from(e.target.files ?? []));
+    e.target.value = "";
+  }
+
+  // A file dropped just outside a drop zone would make the browser navigate
+  // to it and throw away the unsaved form -- swallow those drops.
+  useEffect(() => {
+    if (!editing || viewOnly) return;
+    const stop = (e: globalThis.DragEvent) => {
+      if (Array.from(e.dataTransfer?.types ?? []).includes("Files")) e.preventDefault();
+    };
+    window.addEventListener("dragover", stop);
+    window.addEventListener("drop", stop);
+    return () => {
+      window.removeEventListener("dragover", stop);
+      window.removeEventListener("drop", stop);
+    };
+  }, [editing, viewOnly]);
 
   async function submitForm(action: "save" | "submit") {
     setError(null);
@@ -572,6 +612,7 @@ export default function BuilderPage() {
                       change it, then Save.
                     </p>
                   )}
+                  <DropZone onFiles={addPhotos} disabled={viewOnly || locked} label="Drop photos to add">
                   <div className="photo-grid" style={{ maxWidth: "none" }}>
                     {form.existingPhotoUrls.map((url, i) => (
                       <div className="photo-thumb" key={form.existingPhotos[i]}>
@@ -629,12 +670,15 @@ export default function BuilderPage() {
                       </label>
                     )}
                   </div>
+                  {!viewOnly && <p className="hint">Drag photos here, or use + Add.</p>}
+                  </DropZone>
                 </div>
 
                 <div className="field">
                   <label>
                     Documents ({totalDocs}/{MAX_DOCS})
                   </label>
+                  <DropZone onFiles={addDocs} disabled={viewOnly || locked} label="Drop PDFs to add">
                   <div className="doc-chip-list">
                     {form.existingDocuments.map((doc, i) => (
                       <div className="doc-chip" key={doc.path}>
@@ -679,6 +723,8 @@ export default function BuilderPage() {
                       <input type="file" accept="application/pdf" multiple onChange={handleDocSelect} style={{ display: "none" }} />
                     </label>
                   )}
+                  {!viewOnly && <p className="hint">Drag PDFs here, or use + Add PDF.</p>}
+                  </DropZone>
                 </div>
 
                 {!viewOnly && (

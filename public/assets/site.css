@@ -1095,3 +1095,12 @@ footer .fmono { font-family: var(--mono); }
 }
 .photo-thumb .hero-btn:hover { background: rgba(0,0,0,.85); }
 .photo-thumb .hero-btn:disabled { opacity: .5; cursor: default; }
+
+/* Drag-and-drop zones (Builder form) */
+.dropzone { position: relative; border-radius: 8px; transition: background .12s, outline-color .12s; outline: 2px dashed transparent; outline-offset: 4px; }
+.dropzone.over { background: rgba(184, 51, 43, .06); outline-color: var(--accent, #b8332b); }
+.dropzone-label {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-weight: 600; color: var(--accent, #b8332b); background: rgba(255,255,255,.7);
+  border-radius: 8px; pointer-events: none;
+}
