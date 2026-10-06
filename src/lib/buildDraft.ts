@@ -425,6 +425,17 @@ export async function runBuildDraft(buildId: string): Promise<void> {
       .eq("id", buildId);
   } catch (err) {
     console.error("Build draft failed", err);
-    await fail("Something went wrong while drafting. Please try again in a moment.");
+    // A short technical reference (HTTP status + error type, never the raw
+    // message) so a failure can be diagnosed from the screen alone.
+    let ref = "";
+    if (err instanceof Anthropic.APIError) {
+      const type = (err.error as { error?: { type?: string } } | undefined)?.error?.type;
+      ref = [err.status, type].filter(Boolean).join(" ");
+    } else if (err instanceof Error) {
+      ref = err.name;
+    }
+    await fail(
+      `Something went wrong while drafting${ref ? ` (ref: ${ref})` : ""}. Please try again in a moment.`
+    );
   }
 }
