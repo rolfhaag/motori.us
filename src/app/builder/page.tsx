@@ -235,6 +235,52 @@ export default function BuilderPage() {
     setLastSaved(false);
   }
 
+  // Parse a JSON reply, but don't blow up on a non-JSON error page (e.g. a
+  // platform "payload too large"); report the HTTP status instead.
+  async function readJson(res: Response): Promise<{ error?: string; [k: string]: any }> { // eslint-disable-line @typescript-eslint/no-explicit-any
+    try {
+      return await res.json();
+    } catch {
+      return { error: `Something went wrong (HTTP ${res.status}). Please try again.` };
+    }
+  }
+
+  // Photos and PDFs go straight from the browser to storage on one-time
+  // signed URLs (the server only ever sees their paths), so file size isn't
+  // limited by the request-body cap. Returns the paths to save.
+  async function uploadNewFiles(): Promise<{ photoPaths: string[]; docs: { path: string; filename: string }[] }> {
+    const photos = form.newPhotos;
+    const docs = form.newDocuments;
+    if (photos.length === 0 && docs.length === 0) return { photoPaths: [], docs: [] };
+
+    const res = await authedFetch("/api/builds/upload-urls", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photos: photos.map((f) => f.name), documents: docs.map((f) => f.name) }),
+    });
+    const data = await readJson(res);
+    if (!res.ok) throw new Error(data.error ?? "Couldn't prepare the upload.");
+
+    const put = async (file: File, target: { signedUrl: string; contentType: string }) => {
+      const body = new FormData();
+      body.append("cacheControl", "3600");
+      body.append("", new Blob([file], { type: target.contentType }));
+      const r = await fetch(target.signedUrl, { method: "PUT", body });
+      if (!r.ok) throw new Error(`Upload of ${file.name} failed (HTTP ${r.status}). Please try again.`);
+    };
+    const jobs: (() => Promise<void>)[] = [
+      ...photos.map((f, i) => () => put(f, data.photos[i])),
+      ...docs.map((f, i) => () => put(f, data.documents[i])),
+    ];
+    // A few at a time: fast, without flooding a phone connection.
+    for (let i = 0; i < jobs.length; i += 4) await Promise.all(jobs.slice(i, i + 4).map((j) => j()));
+
+    return {
+      photoPaths: data.photos.map((p: { path: string }) => p.path),
+      docs: docs.map((f, i) => ({ path: data.documents[i].path as string, filename: f.name })),
+    };
+  }
+
   // Save the form without closing it, so a draft can be generated from
   // exactly what's on screen. Returns the build's id.
   async function saveInPlace(): Promise<string | null> {
@@ -251,10 +297,11 @@ export default function BuilderPage() {
       body.set("existingPhotos", JSON.stringify(form.existingPhotos));
       body.set("existingDocuments", JSON.stringify(form.existingDocuments.map((d) => d.path)));
     }
-    form.newPhotos.forEach((f) => body.append("newPhotos", f));
-    form.newDocuments.forEach((f) => body.append("newDocuments", f));
+    const uploaded = await uploadNewFiles();
+    body.set("newPhotoPaths", JSON.stringify(uploaded.photoPaths));
+    body.set("newDocuments", JSON.stringify(uploaded.docs));
     const res = await authedFetch(form.id ? `/api/builds/${form.id}` : "/api/builds", { method: "POST", body });
-    const data = await res.json();
+    const data = await readJson(res);
     if (!res.ok) {
       setError(data.error ?? "Something went wrong.");
       return null;
@@ -277,14 +324,14 @@ export default function BuilderPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ feedback }),
       });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) {
         setError(data.error ?? "Couldn't start the draft.");
         return;
       }
       setDraft((d) => ({ ...d, status: "running", error: null }));
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : "Something went wrong. Please try again.");
     } finally {
       setDraftBusy(false);
     }
@@ -393,12 +440,13 @@ export default function BuilderPage() {
         body.set("existingPhotos", JSON.stringify(form.existingPhotos));
         body.set("existingDocuments", JSON.stringify(form.existingDocuments.map((d) => d.path)));
       }
-      form.newPhotos.forEach((f) => body.append("newPhotos", f));
-      form.newDocuments.forEach((f) => body.append("newDocuments", f));
+      const uploaded = await uploadNewFiles();
+      body.set("newPhotoPaths", JSON.stringify(uploaded.photoPaths));
+      body.set("newDocuments", JSON.stringify(uploaded.docs));
 
       const url = form.id ? `/api/builds/${form.id}` : "/api/builds";
       const res = await authedFetch(url, { method: "POST", body });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
         return;
@@ -406,8 +454,8 @@ export default function BuilderPage() {
       setLastSaved(true);
       setEditing(false);
       await loadBuilds();
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : "Something went wrong. Please try again.");
     } finally {
       setSaving(null);
     }

@@ -11,8 +11,7 @@ import {
   deleteBuildPhotos,
   signBuildDocumentUrls,
   signBuildPhotoUrls,
-  uploadBuildDocument,
-  uploadBuildPhoto,
+  parseJsonArray,
 } from "@/lib/buildAssets";
 
 const MAX_UNDECIDED_SUBMISSIONS = 5;
@@ -81,8 +80,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const keepPhotoPaths = JSON.parse(String(form.get("existingPhotos") ?? "[]")) as string[];
   const keepDocPaths = JSON.parse(String(form.get("existingDocuments") ?? "[]")) as string[];
-  const newPhotoFiles = form.getAll("newPhotos").filter((f): f is File => f instanceof File);
-  const newDocFiles = form.getAll("newDocuments").filter((f): f is File => f instanceof File);
+  // Files are uploaded by the browser straight to storage (see
+  // /api/builds/upload-urls); only their paths arrive here. Anything outside
+  // this Builder's own folder is refused.
+  const newPhotoPaths: string[] = parseJsonArray(form.get("newPhotoPaths")).filter(
+    (p): p is string => typeof p === "string" && p.startsWith(`${builderId}/`) && !p.includes("..")
+  );
+  const newDocEntries: BuildDocument[] = parseJsonArray(form.get("newDocuments"))
+    .filter(
+      (d): d is { path: string; filename: string } =>
+        typeof d?.path === "string" && d.path.startsWith(`${builderId}/`) && !d.path.includes("..")
+    )
+    .map((d) => ({ path: d.path, filename: String(d.filename ?? "document.pdf").slice(0, 200) }));
 
   const existingPhotos = (existing.photos ?? []) as BuildPhoto[];
   const existingDocs = (existing.documents ?? []) as BuildDocument[];
@@ -94,10 +103,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const photosToDelete = existingPhotos.filter((p) => !keepPhotoPaths.includes(p.path)).map((p) => p.path);
   const docsToDelete = existingDocs.filter((d) => !keepDocPaths.includes(d.path)).map((d) => d.path);
 
-  if (keptPhotos.length + newPhotoFiles.length > MAX_BUILD_PHOTOS) {
+  if (keptPhotos.length + newPhotoPaths.length > MAX_BUILD_PHOTOS) {
     return NextResponse.json({ error: `No more than ${MAX_BUILD_PHOTOS} photos allowed.` }, { status: 400 });
   }
-  if (keptDocs.length + newDocFiles.length > MAX_BUILD_DOCUMENTS) {
+  if (keptDocs.length + newDocEntries.length > MAX_BUILD_DOCUMENTS) {
     return NextResponse.json(
       { error: `No more than ${MAX_BUILD_DOCUMENTS} documents allowed.` },
       { status: 400 }
@@ -125,7 +134,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         { status: 400 }
       );
     }
-    if (keptPhotos.length + newPhotoFiles.length < 1) {
+    if (keptPhotos.length + newPhotoPaths.length < 1) {
       return NextResponse.json({ error: "At least one photo is required." }, { status: 400 });
     }
     const { count } = await supabase
@@ -144,17 +153,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  let newPhotoPaths: string[] = [];
-  let newDocs: BuildDocument[] = [];
-  try {
-    newPhotoPaths = await Promise.all(newPhotoFiles.map((f) => uploadBuildPhoto(builderId, f)));
-    newDocs = await Promise.all(newDocFiles.map((f) => uploadBuildDocument(builderId, f)));
-  } catch {
-    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
-  }
-
   const finalPhotos: BuildPhoto[] = [...keptPhotos, ...newPhotoPaths.map((path) => ({ path }))];
-  const finalDocs: BuildDocument[] = [...keptDocs, ...newDocs];
+  const finalDocs: BuildDocument[] = [...keptDocs, ...newDocEntries];
   const title = [year, make, model, trim].filter(Boolean).join(" ") || existing.title;
   const status =
     action === "submit" ? "submitted" : existing.status === "changes_requested" ? "draft" : existing.status;

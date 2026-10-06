@@ -120,3 +120,13 @@ export async function signBuildDocumentUrls(
   if (error) throw error;
   return (data ?? []).map((d, i) => ({ filename: documents[i].filename, url: d.signedUrl ?? "" }));
 }
+
+/** Form field holding a JSON array (e.g. uploaded paths); anything else -> []. */
+export function parseJsonArray(v: FormDataEntryValue | null): any[] { // eslint-disable-line @typescript-eslint/no-explicit-any
+  try {
+    const parsed = JSON.parse(String(v ?? "[]"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}

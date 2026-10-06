@@ -10,8 +10,7 @@ import {
   MAX_BUILD_PHOTOS,
   signBuildDocumentUrls,
   signBuildPhotoUrls,
-  uploadBuildDocument,
-  uploadBuildPhoto,
+  parseJsonArray,
 } from "@/lib/buildAssets";
 
 const THEME_MAX_LENGTH = 400;
@@ -84,13 +83,23 @@ export async function POST(req: NextRequest) {
   const vin = String(form.get("vin") ?? "").trim();
   const theme = String(form.get("theme") ?? "").trim();
   const builderNotes = String(form.get("builderNotes") ?? "").trim() || null;
-  const newPhotoFiles = form.getAll("newPhotos").filter((f): f is File => f instanceof File);
-  const newDocFiles = form.getAll("newDocuments").filter((f): f is File => f instanceof File);
+  // Files are uploaded by the browser straight to storage (see
+  // /api/builds/upload-urls); only their paths arrive here. Anything outside
+  // this Builder's own folder is refused.
+  const newPhotoPaths: string[] = parseJsonArray(form.get("newPhotoPaths")).filter(
+    (p): p is string => typeof p === "string" && p.startsWith(`${builderId}/`) && !p.includes("..")
+  );
+  const newDocEntries: BuildDocument[] = parseJsonArray(form.get("newDocuments"))
+    .filter(
+      (d): d is { path: string; filename: string } =>
+        typeof d?.path === "string" && d.path.startsWith(`${builderId}/`) && !d.path.includes("..")
+    )
+    .map((d) => ({ path: d.path, filename: String(d.filename ?? "document.pdf").slice(0, 200) }));
 
-  if (newPhotoFiles.length > MAX_BUILD_PHOTOS) {
+  if (newPhotoPaths.length > MAX_BUILD_PHOTOS) {
     return NextResponse.json({ error: `No more than ${MAX_BUILD_PHOTOS} photos allowed.` }, { status: 400 });
   }
-  if (newDocFiles.length > MAX_BUILD_DOCUMENTS) {
+  if (newDocEntries.length > MAX_BUILD_DOCUMENTS) {
     return NextResponse.json(
       { error: `No more than ${MAX_BUILD_DOCUMENTS} documents allowed.` },
       { status: 400 }
@@ -109,15 +118,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Save this build and generate your page draft before submitting." }, { status: 400 });
   }
 
-  let photoPaths: string[] = [];
-  let documents: BuildDocument[] = [];
-  try {
-    photoPaths = await Promise.all(newPhotoFiles.map((f) => uploadBuildPhoto(builderId, f)));
-    documents = await Promise.all(newDocFiles.map((f) => uploadBuildDocument(builderId, f)));
-  } catch {
-    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
-  }
-
+  const documents: BuildDocument[] = newDocEntries;
+  const photoPaths = newPhotoPaths;
   const photos: BuildPhoto[] = photoPaths.map((path) => ({ path }));
   const title = [year, make, model, trim].filter(Boolean).join(" ") || "Untitled Build";
   const status = "draft";
