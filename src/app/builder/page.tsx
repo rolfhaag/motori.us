@@ -3,6 +3,8 @@
 import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import DropZone from "@/components/DropZone";
+import Script from "next/script";
+import { SITE_URL } from "@/lib/siteUrl";
 
 type BuildStatus = "draft" | "submitted" | "changes_requested" | "denied" | "published";
 
@@ -955,6 +957,20 @@ export default function BuilderPage() {
                                   Delete
                                 </button>
                               )}
+                              {b.status === "published" && b.slug && b.visibility !== "private" && (
+                                <button
+                                  className="btn-secondary"
+                                  type="button"
+                                  onClick={() =>
+                                    (window as unknown as { motoriOpenShare?: (u: string, n: string) => void }).motoriOpenShare?.(
+                                      `${SITE_URL}/builds/${b.slug}/`,
+                                      [b.year, b.make, b.model, b.trim].filter(Boolean).join(" ")
+                                    )
+                                  }
+                                >
+                                  Share
+                                </button>
+                              )}
                               {b.status === "published" && b.slug && (
                                 <a className="cta-link" href={`/builds/${b.slug}/`}>
                                   {b.visibility === "private" ? "View (private) →" : "View live →"}
@@ -977,6 +993,10 @@ export default function BuilderPage() {
           </div>
         </section>
       </main>
+
+      <Script src="/assets/qrcode.min.js" strategy="afterInteractive" />
+      <Script src="/assets/qr.js" strategy="afterInteractive" />
+      <Script src="/assets/site.js" strategy="afterInteractive" />
 
       <footer>
         <div className="wrap">

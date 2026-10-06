@@ -1142,3 +1142,21 @@ footer .fmono { font-family: var(--mono); }
 .modal-head h4 { margin: 0; font-size: 20px; }
 .modal-x { background: none; border: none; font-size: 28px; line-height: 1; cursor: pointer; color: var(--ink-2); }
 .modal-x:hover { color: var(--ink); }
+
+/* Owner share kit (Instagram / Facebook), appended to the share dialog */
+.share-social { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 360px; }
+.share-social[hidden] { display: none; }
+.share-social-row { display: flex; gap: 12px; justify-content: center; }
+.share-social-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  min-width: 96px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: 14px; background: none;
+  color: var(--ink-2); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.share-social-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.share-social-btn:disabled { opacity: .55; cursor: default; }
+.share-social-caption { display: flex; flex-direction: column; gap: 6px; width: 100%; font-size: 12.5px; color: var(--ink-2); }
+.share-social-caption textarea {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; color: var(--ink);
+  background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 10px; resize: vertical;
+}

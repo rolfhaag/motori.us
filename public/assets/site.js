@@ -82,6 +82,10 @@
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
+    // Lets logged-in owners' tooling (React, see OwnerShareKit) add to the card.
+    try {
+      document.dispatchEvent(new CustomEvent('motori:share-open', { detail: { url: url, name: name, card: card } }));
+    } catch (e) {}
 
     var copyResetTimer = null;
     copyBtn.addEventListener('click', function () {
@@ -130,6 +134,7 @@
   }
 
   var NS_SVG = 'http://www.w3.org/2000/svg';
+  window.motoriOpenShare = openShareModal; // used by the Builder dashboard's Share button
 
   document.querySelectorAll('[data-share-url]').forEach(function (btn) {
     btn.addEventListener('click', function () {
