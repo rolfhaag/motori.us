@@ -1,7 +1,7 @@
 "use client";
 
 import { usePrivy } from "@privy-io/react-auth";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 interface Application {
   id: string;
@@ -53,6 +53,32 @@ interface Dashboard {
 type Tab = "applications" | "builds" | "builders" | "users";
 
 const ACTIVE_APPLICATION_STATUSES = ["submitted", "denied_resubmit"];
+
+
+/** Simple overlay dialog: closes on Escape or a click on the backdrop. */
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h4>{title}</h4>
+          <button type="button" className="modal-x" aria-label="Close" onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -207,10 +233,12 @@ export default function AdminPage() {
         return;
       }
       setNotes("");
-      setSelectedBuild(null);
       if (data.password && data.slug) {
         const title = dashboard?.builds.find((b) => b.id === id)?.title ?? "Build";
+        // Keep the Review dialog open to show the one-time password.
         setPrivateShare({ title, url: `${window.location.origin}/builds/${data.slug}/`, password: data.password });
+      } else {
+        setSelectedBuild(null);
       }
       await loadDashboard();
     } catch {
@@ -408,38 +436,6 @@ export default function AdminPage() {
 
                 {tab === "builds" && (
                   <>
-                    {privateShare && (
-                      <div className="detail-panel">
-                        <h4>Private link for {privateShare.title}</h4>
-                        <p style={{ margin: "0 0 8px" }}>
-                          Copy this now &mdash; the password can&rsquo;t be shown again (you can generate a new one).
-                        </p>
-                        <div className="detail-row">
-                          <span className="label">Link</span>
-                          {privateShare.url}
-                        </div>
-                        <div className="detail-row">
-                          <span className="label">Password</span>
-                          <code style={{ fontSize: 18, letterSpacing: 1 }}>{privateShare.password}</code>
-                        </div>
-                        <div className="btn-row">
-                          <button
-                            className="btn-primary"
-                            type="button"
-                            onClick={() =>
-                              navigator.clipboard?.writeText(
-                                `${privateShare.url}\nPassword: ${privateShare.password}`
-                              )
-                            }
-                          >
-                            Copy link + password
-                          </button>
-                          <button className="btn-secondary" type="button" onClick={() => setPrivateShare(null)}>
-                            Done
-                          </button>
-                        </div>
-                      </div>
-                    )}
                     <table className="admin-table">
                       <thead>
                         <tr>
@@ -450,83 +446,60 @@ export default function AdminPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {dashboard.builds.map((build) => (
-                          <tr
-                            key={build.id}
-                            className={`${build.status === "submitted" ? "clickable" : ""} ${
-                              selectedBuild === build.id ? "selected" : ""
-                            }`}
-                            onClick={() => {
-                              if (build.status !== "submitted") return;
-                              setSelectedBuild(build.id === selectedBuild ? null : build.id);
-                              setNotes("");
-                            }}
-                          >
-                            <td>{build.title}</td>
-                            <td>
-                              <span className={`badge ${build.status}`}>{build.status}</span>
-                              {build.status === "published" && build.visibility === "private" && (
-                                <span className="badge" style={{ marginLeft: 6 }}>private</span>
-                              )}
-                              {build.hidden && <span className="badge" style={{ marginLeft: 6 }}>hidden</span>}
-                            </td>
-                            <td>{fmtDate(build.created_at)}</td>
-                            <td>
-                              <div className="btn-row" style={{ marginTop: 0 }}>
-                                <a
-                                  className="btn-secondary"
-                                  href={`/admin/preview/${build.id}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  Preview
-                                </a>
+                        {dashboard.builds.map((build) => {
+                          const reviewable =
+                            build.status === "submitted" ||
+                            (build.status === "published" && build.visibility === "private");
+                          return (
+                            <tr key={build.id}>
+                              <td>{build.title}</td>
+                              <td>
+                                <span className={`badge ${build.status}`}>{build.status}</span>
                                 {build.status === "published" && build.visibility === "private" && (
-                                  <>
-                                    <button
-                                      className="btn-secondary"
-                                      type="button"
-                                      disabled={busy}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        decideBuild(build.id, "new_password");
-                                      }}
-                                    >
-                                      New password
-                                    </button>
-                                    <button
-                                      className="btn-secondary"
-                                      type="button"
-                                      disabled={busy}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (window.confirm("Make this build public? Anyone with the link will be able to see it and search engines can index it.")) {
-                                          decideBuild(build.id, "make_public");
-                                        }
-                                      }}
-                                    >
-                                      Make public
-                                    </button>
-                                  </>
+                                  <span className="badge" style={{ marginLeft: 6 }}>private</span>
                                 )}
-                                {build.status === "published" && (
-                                  <button
+                                {build.hidden && <span className="badge" style={{ marginLeft: 6 }}>hidden</span>}
+                              </td>
+                              <td>{fmtDate(build.created_at)}</td>
+                              <td>
+                                <div className="row-actions">
+                                  <a
                                     className="btn-secondary"
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      decideBuild(build.id, build.hidden ? "unhide" : "hide");
-                                    }}
+                                    href={`/admin/preview/${build.id}`}
+                                    target="_blank"
+                                    rel="noreferrer"
                                   >
-                                    {build.hidden ? "Unhide" : "Hide"}
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                                    Preview
+                                  </a>
+                                  {reviewable && (
+                                    <button
+                                      className="btn-primary"
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={() => {
+                                        setNotes("");
+                                        setPrivateShare(null);
+                                        setSelectedBuild(build.id);
+                                      }}
+                                    >
+                                      Review
+                                    </button>
+                                  )}
+                                  {build.status === "published" && (
+                                    <button
+                                      className="btn-secondary"
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={() => decideBuild(build.id, build.hidden ? "unhide" : "hide")}
+                                    >
+                                      {build.hidden ? "Unhide" : "Hide"}
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                         {dashboard.builds.length === 0 && (
                           <tr>
                             <td colSpan={4}>No build submissions yet.</td>
@@ -539,63 +512,138 @@ export default function AdminPage() {
                       (() => {
                         const build = dashboard.builds.find((b) => b.id === selectedBuild);
                         if (!build) return null;
+                        const close = () => {
+                          setSelectedBuild(null);
+                          setPrivateShare(null);
+                          setNotes("");
+                        };
                         return (
-                          <div className="detail-panel">
-                            <h4>{build.title}</h4>
-                            {build.admin_notes && (
-                              <div className="detail-row">
-                                <span className="label">Previous admin note</span>
-                                {build.admin_notes}
-                              </div>
+                          <Modal title={build.title} onClose={close}>
+                            {privateShare ? (
+                              <>
+                                <p style={{ margin: "0 0 12px" }}>
+                                  Copy this now &mdash; the password can&rsquo;t be shown again (you can generate a new
+                                  one).
+                                </p>
+                                <div className="detail-row">
+                                  <span className="label">Link</span>
+                                  {privateShare.url}
+                                </div>
+                                <div className="detail-row">
+                                  <span className="label">Password</span>
+                                  <code style={{ fontSize: 18, letterSpacing: 1 }}>{privateShare.password}</code>
+                                </div>
+                                <div className="btn-row">
+                                  <button
+                                    className="btn-primary"
+                                    type="button"
+                                    onClick={() =>
+                                      navigator.clipboard?.writeText(
+                                        `${privateShare.url}\nPassword: ${privateShare.password}`
+                                      )
+                                    }
+                                  >
+                                    Copy link + password
+                                  </button>
+                                  <button className="btn-secondary" type="button" onClick={close}>
+                                    Done
+                                  </button>
+                                </div>
+                              </>
+                            ) : build.status === "submitted" ? (
+                              <>
+                                {build.admin_notes && (
+                                  <div className="detail-row">
+                                    <span className="label">Previous admin note</span>
+                                    {build.admin_notes}
+                                  </div>
+                                )}
+                                <div className="field">
+                                  <label>Note to Builder (required if requesting changes)</label>
+                                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+                                </div>
+                                <div className="btn-row">
+                                  <a
+                                    className="btn-secondary"
+                                    href={`/admin/preview/${build.id}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    Preview page
+                                  </a>
+                                  <button
+                                    className="btn-primary"
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => decideBuild(build.id, "publish")}
+                                  >
+                                    Publish
+                                  </button>
+                                  <button
+                                    className="btn-secondary"
+                                    type="button"
+                                    disabled={busy}
+                                    title="Live at its own link, but only viewable with a generated password. Not in search or the sitemap."
+                                    onClick={() => decideBuild(build.id, "publish_private")}
+                                  >
+                                    Publish privately
+                                  </button>
+                                  <button
+                                    className="btn-secondary"
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => decideBuild(build.id, "deny_resubmit")}
+                                  >
+                                    Request changes
+                                  </button>
+                                  <button
+                                    className="btn-danger"
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => decideBuild(build.id, "deny_final")}
+                                  >
+                                    Deny
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <p style={{ margin: "0 0 12px" }}>
+                                  This build is published privately: only people with the link and password can see
+                                  it, and it&rsquo;s kept out of search and the sitemap.
+                                </p>
+                                <div className="btn-row">
+                                  <button
+                                    className="btn-primary"
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => decideBuild(build.id, "new_password")}
+                                  >
+                                    New password
+                                  </button>
+                                  <button
+                                    className="btn-secondary"
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      if (
+                                        window.confirm(
+                                          "Make this build public? Anyone with the link will be able to see it and search engines can index it."
+                                        )
+                                      ) {
+                                        decideBuild(build.id, "make_public");
+                                      }
+                                    }}
+                                  >
+                                    Make public
+                                  </button>
+                                  <button className="btn-secondary" type="button" onClick={close}>
+                                    Close
+                                  </button>
+                                </div>
+                              </>
                             )}
-                            <div className="field">
-                              <label>Note to Builder (required if requesting changes)</label>
-                              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
-                            </div>
-                            <div className="btn-row">
-                              <a
-                                className="btn-secondary"
-                                href={`/admin/preview/${build.id}`}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Preview page
-                              </a>
-                              <button
-                                className="btn-primary"
-                                type="button"
-                                disabled={busy}
-                                onClick={() => decideBuild(build.id, "publish")}
-                              >
-                                Publish
-                              </button>
-                              <button
-                                className="btn-secondary"
-                                type="button"
-                                disabled={busy}
-                                title="Live at its own link, but only viewable with a generated password. Not in search or the sitemap."
-                                onClick={() => decideBuild(build.id, "publish_private")}
-                              >
-                                Publish privately
-                              </button>
-                              <button
-                                className="btn-secondary"
-                                type="button"
-                                disabled={busy}
-                                onClick={() => decideBuild(build.id, "deny_resubmit")}
-                              >
-                                Request changes
-                              </button>
-                              <button
-                                className="btn-danger"
-                                type="button"
-                                disabled={busy}
-                                onClick={() => decideBuild(build.id, "deny_final")}
-                              >
-                                Deny
-                              </button>
-                            </div>
-                          </div>
+                          </Modal>
                         );
                       })()}
                   </>

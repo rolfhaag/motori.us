@@ -24,8 +24,18 @@ export default function AuthButton() {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
+  // Pages that wait for Privy (or for data) before rendering their nav don't
+  // have #auth-slot yet when this mounts, so keep looking: a MutationObserver
+  // re-finds the slot whenever the page's markup changes.
   useEffect(() => {
-    setSlot(document.getElementById("auth-slot"));
+    const find = () => {
+      const el = document.getElementById("auth-slot");
+      setSlot((prev) => (prev === el ? prev : el));
+    };
+    find();
+    const observer = new MutationObserver(find);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {

@@ -88,6 +88,7 @@ export default function BuilderPage() {
   const [saving, setSaving] = useState<"save" | "submit" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState<{
     status: BuildRow["draft_status"];
     error: string | null;
@@ -202,6 +203,7 @@ export default function BuilderPage() {
   }
 
   function openBuild(b: BuildRow) {
+    setNotice(null);
     applyRow(b);
     setFeedback("");
     setViewOnly(STATUS_META[b.status].action === "view");
@@ -341,6 +343,9 @@ export default function BuilderPage() {
   useEffect(() => {
     if (!drafting || !form.id) return;
     const id = form.id;
+    // The very first draft finishing sends the Builder to their dashboard,
+    // where the build now has Edit and Preview. A refresh stays in the form.
+    const wasFirstDraft = draft.runs === 0 && !draft.content;
     const timer = setInterval(async () => {
       try {
         const res = await authedFetch(`/api/builds/${id}/draft`);
@@ -351,6 +356,10 @@ export default function BuilderPage() {
           const row = rows.find((r) => r.id === id);
           if (row) applyRow(row);
           setFeedback("");
+          if (wasFirstDraft && row?.draft_status === "done" && row.draft_content) {
+            setEditing(false);
+            setNotice("Your page draft is ready. Preview it, then Edit to make changes or submit it for review.");
+          }
         }
       } catch {
         /* keep polling */
@@ -824,9 +833,13 @@ export default function BuilderPage() {
                           value={feedback}
                           maxLength={600}
                           onChange={(e) => setFeedback(e.target.value)}
-                          placeholder="What should change? You can adjust the wording within each section and the photo order -- the page layout itself is fixed."
+                          placeholder={`You have ${runsLeft} draft${runsLeft === 1 ? "" : "s"} left. Tell me what you want changed or submit this draft for review.`}
                           style={{ marginTop: 10 }}
                         />
+                        <p className="hint" style={{ marginTop: 6 }}>
+                          Changes can cover the wording within each section and the photo order. The page layout is
+                          fixed.
+                        </p>
                       </>
                     )}
                     {(!hasDraft || runsLeft > 0) && (
@@ -897,6 +910,12 @@ export default function BuilderPage() {
                   </button>
                 </div>
 
+                {notice && (
+                  <div className="status-banner ok">
+                    <span className="label">Draft ready</span>
+                    <span>{notice}</span>
+                  </div>
+                )}
                 {error && <p className="form-error">{error}</p>}
 
                 <table className="admin-table">
@@ -917,10 +936,20 @@ export default function BuilderPage() {
                             <span className={`badge ${b.status}`}>{meta.label}</span>
                           </td>
                           <td>
-                            <div className="btn-row" style={{ marginTop: 0 }}>
+                            <div className="row-actions">
                               <button className="btn-secondary" type="button" onClick={() => openBuild(b)}>
                                 {meta.action === "edit" ? "Edit" : "View"}
                               </button>
+                              {b.draft_content && (
+                                <a
+                                  className="btn-secondary"
+                                  href={`/builder/preview/${b.id}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Preview
+                                </a>
+                              )}
                               {b.status === "draft" && (
                                 <button className="btn-danger" type="button" onClick={() => cancelDraft(b.id)}>
                                   Delete
