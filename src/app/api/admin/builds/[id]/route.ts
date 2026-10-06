@@ -3,8 +3,17 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireAdmin } from "@/lib/requireAdmin";
 import { assignBuildSlug } from "@/lib/buildSlug";
+import { generateAccessPassword, hashAccessPassword } from "@/lib/buildAccess";
 
-type BuildAction = "publish" | "deny_resubmit" | "deny_final" | "hide" | "unhide";
+type BuildAction =
+  | "publish"
+  | "publish_private"
+  | "new_password"
+  | "make_public"
+  | "deny_resubmit"
+  | "deny_final"
+  | "hide"
+  | "unhide";
 
 /**
  * Build submission review: Admin publishes a submitted Build, sends it back
@@ -36,8 +45,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const supabase = getSupabaseAdmin();
+  const password = generateAccessPassword();
 
-  if (action === "publish" || action === "deny_resubmit" || action === "deny_final") {
+  if (
+    action === "publish" ||
+    action === "publish_private" ||
+    action === "deny_resubmit" ||
+    action === "deny_final"
+  ) {
     const { data: build } = await supabase
       .from("builds")
       .select("status, slug, make, model, trim")
@@ -48,11 +63,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "This build has already been decided." }, { status: 409 });
     }
 
-    const newStatus =
-      action === "publish" ? "published" : action === "deny_resubmit" ? "changes_requested" : "denied";
+    const publishing = action === "publish" || action === "publish_private";
+    const newStatus = publishing ? "published" : action === "deny_resubmit" ? "changes_requested" : "denied";
 
     const slug =
-      action === "publish" && !build.slug
+      publishing && !build.slug
         ? await assignBuildSlug(build.make, build.model, build.trim)
         : build.slug;
 
@@ -61,11 +76,46 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .update({
         status: newStatus,
         admin_notes: notes,
-        ...(action === "publish" ? { slug } : {}),
+        ...(publishing ? { slug } : {}),
+        ...(action === "publish" ? { visibility: "public", access_password_hash: null } : {}),
+        ...(action === "publish_private" ? { visibility: "private", access_password_hash: hashAccessPassword(password) } : {}),
       })
       .eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, status: newStatus, slug });
+    // The plain password is returned exactly once, here.
+    return NextResponse.json({
+      ok: true,
+      status: newStatus,
+      slug,
+      ...(action === "publish_private" ? { password } : {}),
+    });
+  }
+
+  if (action === "new_password" || action === "make_public") {
+    const { data: build } = await supabase
+      .from("builds")
+      .select("status, visibility, slug")
+      .eq("id", id)
+      .maybeSingle();
+    if (!build) return NextResponse.json({ error: "Build not found." }, { status: 404 });
+    if (build.status !== "published" || build.visibility !== "private") {
+      return NextResponse.json({ error: "This build isn't privately published." }, { status: 409 });
+    }
+    if (action === "make_public") {
+      const { error } = await supabase
+        .from("builds")
+        .update({ visibility: "public", access_password_hash: null })
+        .eq("id", id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, visibility: "public", slug: build.slug });
+    }
+    const newPassword = generateAccessPassword();
+    const { error } = await supabase
+      .from("builds")
+      .update({ access_password_hash: hashAccessPassword(newPassword) })
+      .eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, slug: build.slug, password: newPassword });
   }
 
   if (action === "hide" || action === "unhide") {

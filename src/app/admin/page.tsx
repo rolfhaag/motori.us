@@ -23,6 +23,8 @@ interface Build {
   title: string;
   status: string;
   hidden: boolean;
+  visibility: "public" | "private";
+  slug: string | null;
   admin_notes: string | null;
   created_at: string;
 }
@@ -66,6 +68,9 @@ export default function AdminPage() {
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Shown once after a private publish / password regeneration -- the server
+  // only keeps a hash, so this is the only time the password is visible.
+  const [privateShare, setPrivateShare] = useState<{ title: string; url: string; password: string } | null>(null);
 
   const authedFetch = useCallback(
     async (url: string, init?: RequestInit) => {
@@ -178,7 +183,15 @@ export default function AdminPage() {
 
   async function decideBuild(
     id: string,
-    action: "publish" | "deny_resubmit" | "deny_final" | "hide" | "unhide"
+    action:
+      | "publish"
+      | "publish_private"
+      | "new_password"
+      | "make_public"
+      | "deny_resubmit"
+      | "deny_final"
+      | "hide"
+      | "unhide"
   ) {
     setBusy(true);
     setError(null);
@@ -195,6 +208,10 @@ export default function AdminPage() {
       }
       setNotes("");
       setSelectedBuild(null);
+      if (data.password && data.slug) {
+        const title = dashboard?.builds.find((b) => b.id === id)?.title ?? "Build";
+        setPrivateShare({ title, url: `${window.location.origin}/builds/${data.slug}/`, password: data.password });
+      }
       await loadDashboard();
     } catch {
       setError("Something went wrong.");
@@ -391,6 +408,38 @@ export default function AdminPage() {
 
                 {tab === "builds" && (
                   <>
+                    {privateShare && (
+                      <div className="detail-panel">
+                        <h4>Private link for {privateShare.title}</h4>
+                        <p style={{ margin: "0 0 8px" }}>
+                          Copy this now &mdash; the password can&rsquo;t be shown again (you can generate a new one).
+                        </p>
+                        <div className="detail-row">
+                          <span className="label">Link</span>
+                          {privateShare.url}
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Password</span>
+                          <code style={{ fontSize: 18, letterSpacing: 1 }}>{privateShare.password}</code>
+                        </div>
+                        <div className="btn-row">
+                          <button
+                            className="btn-primary"
+                            type="button"
+                            onClick={() =>
+                              navigator.clipboard?.writeText(
+                                `${privateShare.url}\nPassword: ${privateShare.password}`
+                              )
+                            }
+                          >
+                            Copy link + password
+                          </button>
+                          <button className="btn-secondary" type="button" onClick={() => setPrivateShare(null)}>
+                            Done
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <table className="admin-table">
                       <thead>
                         <tr>
@@ -416,23 +465,65 @@ export default function AdminPage() {
                             <td>{build.title}</td>
                             <td>
                               <span className={`badge ${build.status}`}>{build.status}</span>
+                              {build.status === "published" && build.visibility === "private" && (
+                                <span className="badge" style={{ marginLeft: 6 }}>private</span>
+                              )}
                               {build.hidden && <span className="badge" style={{ marginLeft: 6 }}>hidden</span>}
                             </td>
                             <td>{fmtDate(build.created_at)}</td>
                             <td>
-                              {build.status === "published" && (
-                                <button
+                              <div className="btn-row" style={{ marginTop: 0 }}>
+                                <a
                                   className="btn-secondary"
-                                  type="button"
-                                  disabled={busy}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    decideBuild(build.id, build.hidden ? "unhide" : "hide");
-                                  }}
+                                  href={`/admin/preview/${build.id}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  {build.hidden ? "Unhide" : "Hide"}
-                                </button>
-                              )}
+                                  Preview
+                                </a>
+                                {build.status === "published" && build.visibility === "private" && (
+                                  <>
+                                    <button
+                                      className="btn-secondary"
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        decideBuild(build.id, "new_password");
+                                      }}
+                                    >
+                                      New password
+                                    </button>
+                                    <button
+                                      className="btn-secondary"
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm("Make this build public? Anyone with the link will be able to see it and search engines can index it.")) {
+                                          decideBuild(build.id, "make_public");
+                                        }
+                                      }}
+                                    >
+                                      Make public
+                                    </button>
+                                  </>
+                                )}
+                                {build.status === "published" && (
+                                  <button
+                                    className="btn-secondary"
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      decideBuild(build.id, build.hidden ? "unhide" : "hide");
+                                    }}
+                                  >
+                                    {build.hidden ? "Unhide" : "Hide"}
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -462,6 +553,14 @@ export default function AdminPage() {
                               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
                             </div>
                             <div className="btn-row">
+                              <a
+                                className="btn-secondary"
+                                href={`/admin/preview/${build.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Preview page
+                              </a>
                               <button
                                 className="btn-primary"
                                 type="button"
@@ -469,6 +568,15 @@ export default function AdminPage() {
                                 onClick={() => decideBuild(build.id, "publish")}
                               >
                                 Publish
+                              </button>
+                              <button
+                                className="btn-secondary"
+                                type="button"
+                                disabled={busy}
+                                title="Live at its own link, but only viewable with a generated password. Not in search or the sitemap."
+                                onClick={() => decideBuild(build.id, "publish_private")}
+                              >
+                                Publish privately
                               </button>
                               <button
                                 className="btn-secondary"

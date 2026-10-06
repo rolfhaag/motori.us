@@ -83,7 +83,7 @@ export default function BuildPageView({
       <main>
         <section className="hero compact">
           <div className="wrap">
-            <p className="eyebrow">{draft?.hero.eyebrow || handle || "motori.us"}</p>
+            <p className="eyebrow">{handle || draft?.hero.eyebrow || "motori.us"}</p>
             <h1 className="title mid">{build.title}</h1>
             {thesis && <p className="thesis">{thesis}</p>}
             {build.vin && (

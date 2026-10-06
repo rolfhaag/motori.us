@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import Script from "next/script";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { BuildPhoto, signBuildPhotoUrls } from "@/lib/buildAssets";
@@ -7,6 +8,8 @@ import { versionedAsset } from "@/lib/assetVersion";
 import { SITE_URL } from "@/lib/siteUrl";
 import BuildPageView from "@/components/BuildPageView";
 import type { DraftContent } from "@/lib/buildDraft";
+import PrivateBuildGate from "@/components/PrivateBuildGate";
+import { accessCookieName, hasAccess } from "@/lib/buildAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +25,15 @@ interface BuildRow {
   photos: BuildPhoto[];
   draft_content: unknown;
   builder_id: string;
+  visibility: string;
+  access_password_hash: string | null;
 }
 
 async function getBuild(slug: string): Promise<BuildRow | null> {
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
     .from("builds")
-    .select("id, slug, title, make, model, trim, vin, theme, photos, draft_content, builder_id")
+    .select("id, slug, title, make, model, trim, vin, theme, photos, draft_content, builder_id, visibility, access_password_hash")
     .eq("slug", slug)
     .eq("status", "published")
     .eq("hidden", false)
@@ -50,6 +55,15 @@ export async function generateMetadata({
   const { slug } = await params;
   const build = await getBuild(slug);
   if (!build) return { title: "motori.us" };
+
+  // Private builds: no description, no image, no indexing -- the page itself
+  // is behind a password, so the link preview shouldn't leak anything.
+  if (build.visibility === "private") {
+    return {
+      title: "Private build — motori.us",
+      robots: { index: false, follow: false },
+    };
+  }
 
   const title = `${build.title} — motori.us`;
   const description =
@@ -82,6 +96,13 @@ export default async function DynamicBuildPage({ params }: { params: Promise<{ s
   const build = await getBuild(slug);
   if (!build) notFound();
 
+  if (build.visibility === "private") {
+    const jar = await cookies();
+    if (!hasAccess(build.slug, build.access_password_hash, jar.get(accessCookieName(build.slug))?.value)) {
+      return <PrivateBuildGate slug={build.slug} />;
+    }
+  }
+
   const handle = await getBuilderHandle(build.builder_id);
   const photoEntries = (build.photos ?? []) as BuildPhoto[];
   const photoUrls = await signBuildPhotoUrls(photoEntries);
@@ -107,10 +128,12 @@ export default async function DynamicBuildPage({ params }: { params: Promise<{ s
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
-      />
+      {build.visibility !== "private" && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+        />
+      )}
       <BuildPageView
         build={build}
         draft={(build.draft_content as DraftContent | null) ?? null}

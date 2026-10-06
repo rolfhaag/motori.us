@@ -20,6 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     .select("photos")
     .eq("slug", slug)
     .eq("status", "published")
+    .eq("visibility", "public")
     .eq("hidden", false)
     .maybeSingle();
 

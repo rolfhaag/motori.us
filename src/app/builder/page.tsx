@@ -29,6 +29,8 @@ interface BuildRow {
   draft_status: "none" | "running" | "done" | "failed";
   draft_error: string | null;
   draft_runs: number;
+  draft_stale?: boolean;
+  visibility?: "public" | "private";
   draft_content: { hero?: { thesis?: string; specChips?: string[] }; baseline?: { glance?: unknown[]; detailed?: unknown[] }; roadmap?: unknown[]; updates?: unknown[] } | null;
 }
 
@@ -67,6 +69,7 @@ function blankForm() {
     status: "draft" as BuildStatus,
     adminNotes: null as string | null,
     slug: null as string | null,
+    visibility: "public" as "public" | "private",
   };
 }
 
@@ -87,7 +90,11 @@ export default function BuilderPage() {
     error: string | null;
     runs: number;
     content: BuildRow["draft_content"];
-  }>({ status: "none", error: null, runs: 0, content: null });
+    stale: boolean;
+  }>({ status: "none", error: null, runs: 0, content: null, stale: false });
+  // Snapshot of the inputs as last loaded/saved, to spot unsaved edits that
+  // the current draft doesn't reflect.
+  const [basis, setBasis] = useState("");
   const [feedback, setFeedback] = useState("");
   const [draftBusy, setDraftBusy] = useState(false);
 
@@ -147,7 +154,8 @@ export default function BuilderPage() {
 
   function startNew() {
     setForm(blankForm());
-    setDraft({ status: "none", error: null, runs: 0, content: null });
+    setDraft({ status: "none", error: null, runs: 0, content: null, stale: false });
+    setBasis("");
     setFeedback("");
     setViewOnly(false);
     setEditing(true);
@@ -156,7 +164,19 @@ export default function BuilderPage() {
   }
 
   function applyRow(b: BuildRow) {
-    setDraft({ status: b.draft_status, error: b.draft_error, runs: b.draft_runs, content: b.draft_content });
+    setDraft({
+      status: b.draft_status,
+      error: b.draft_error,
+      runs: b.draft_runs,
+      content: b.draft_content,
+      stale: Boolean(b.draft_stale),
+    });
+    setBasis(
+      JSON.stringify([
+        b.make ?? "", b.model ?? "", b.trim ?? "", b.theme ?? "",
+        b.photos.map((p) => p.path).sort(), b.documents.map((d) => d.path).sort(),
+      ])
+    );
     setForm({
       id: b.id,
       make: b.make ?? "",
@@ -173,6 +193,7 @@ export default function BuilderPage() {
       status: b.status,
       adminNotes: b.admin_notes,
       slug: b.slug,
+      visibility: b.visibility ?? "public",
     });
   }
 
@@ -189,6 +210,26 @@ export default function BuilderPage() {
   const locked = viewOnly || drafting;
   const hasDraft = Boolean(draft.content);
   const runsLeft = Math.max(0, MAX_DRAFT_RUNS - draft.runs);
+  // The draft is out of date when saved inputs changed since it ran, or when
+  // there are unsaved edits to what the AI reads (not VIN, notes, or hero order).
+  const currentBasis = JSON.stringify([
+    form.make, form.model, form.trim, form.theme,
+    [...form.existingPhotos].sort(), form.existingDocuments.map((d) => d.path).sort(),
+  ]);
+  const draftStale =
+    hasDraft &&
+    (draft.stale || (basis !== "" && currentBasis !== basis) || form.newPhotos.length > 0 || form.newDocuments.length > 0);
+
+  function makeHero(i: number) {
+    setForm((f) => {
+      const paths = [...f.existingPhotos];
+      const urls = [...f.existingPhotoUrls];
+      const [p] = paths.splice(i, 1);
+      const [u] = urls.splice(i, 1);
+      return { ...f, existingPhotos: [p, ...paths], existingPhotoUrls: [u, ...urls] };
+    });
+    setLastSaved(false);
+  }
 
   // Save the form without closing it, so a draft can be generated from
   // exactly what's on screen. Returns the build's id.
@@ -417,7 +458,11 @@ export default function BuilderPage() {
                 {form.status === "published" && (
                   <div className="status-banner ok">
                     <span className="label">Approved</span>
-                    <span>This build is live on motori.us.</span>
+                    <span>
+                      {form.visibility === "private"
+                        ? "This build is published privately -- viewable with a password from motori.us."
+                        : "This build is live on motori.us."}
+                    </span>
                     {form.slug && (
                       <>
                         {" "}
@@ -503,10 +548,22 @@ export default function BuilderPage() {
                   <label>
                     Photos ({totalPhotos}/{MAX_PHOTOS})
                   </label>
+                  {!viewOnly && form.existingPhotoUrls.length > 1 && (
+                    <p className="hint" style={{ marginTop: 0 }}>
+                      The first photo is your page&rsquo;s hero and link-preview image. Use &ldquo;Make hero&rdquo; to
+                      change it, then Save.
+                    </p>
+                  )}
                   <div className="photo-grid" style={{ maxWidth: "none" }}>
                     {form.existingPhotoUrls.map((url, i) => (
                       <div className="photo-thumb" key={form.existingPhotos[i]}>
                         <img src={url} alt="" />
+                        {i === 0 && <span className="hero-tag">Hero</span>}
+                        {i > 0 && !viewOnly && (
+                          <button type="button" className="hero-btn" disabled={drafting} onClick={() => makeHero(i)}>
+                            Make hero
+                          </button>
+                        )}
                         {!viewOnly && (
                           <button
                             type="button"
@@ -615,6 +672,17 @@ export default function BuilderPage() {
                         <span>{draft.error}</span>
                       </div>
                     )}
+                    {draftStale && !drafting && (
+                      <div className="status-banner warn">
+                        <span className="label">Draft out of date</span>
+                        <span>
+                          You&rsquo;ve changed the theme, photos or documents since this draft was written.
+                          {runsLeft > 0
+                            ? " Use Update Draft to apply the changes (it uses one of your updates)."
+                            : " You have no updates left, so the page will use the draft as written."}
+                        </span>
+                      </div>
+                    )}
                     {drafting ? (
                       <p className="hint">
                         Drafting your page from your photos and documents. This can take a minute or two -- you can
@@ -683,7 +751,16 @@ export default function BuilderPage() {
                         type="button"
                         disabled={saving !== null || drafting || !hasDraft}
                         title={hasDraft ? undefined : "Generate your page draft first"}
-                        onClick={() => submitForm("submit")}
+                        onClick={() => {
+                          if (
+                            draftStale &&
+                            !window.confirm(
+                              "Your page draft doesn't reflect your latest changes to the theme, photos or documents. Submit anyway?"
+                            )
+                          )
+                            return;
+                          submitForm("submit");
+                        }}
                       >
                         {saving === "submit" ? "Submitting…" : "Submit"}
                       </button>
@@ -739,7 +816,7 @@ export default function BuilderPage() {
                               )}
                               {b.status === "published" && b.slug && (
                                 <a className="cta-link" href={`/builds/${b.slug}/`}>
-                                  View live &rarr;
+                                  {b.visibility === "private" ? "View (private) →" : "View live →"}
                                 </a>
                               )}
                             </div>

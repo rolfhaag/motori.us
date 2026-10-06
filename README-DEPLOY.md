@@ -81,6 +81,8 @@ redeploy (Vercel does this automatically on the next push, or you can hit
    - `0008_seed_e9_build.sql` — registers the existing E9 page as a row under
      your Builder so it shows in your dashboard.
    - `0009_build_draft_state.sql` — AI draft state columns on `builds`.
+   - `0010_build_private_and_stale.sql` — private publishing (visibility +
+     password hash) and stale-draft tracking columns on `builds`.
 3. You only need to run each one once. Storage buckets for application
    photos and Build photos/documents are created automatically on first use
    — nothing to set up by hand for those.

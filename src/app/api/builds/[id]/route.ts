@@ -83,7 +83,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const existingPhotos = (existing.photos ?? []) as BuildPhoto[];
   const existingDocs = (existing.documents ?? []) as BuildDocument[];
-  const keptPhotos = existingPhotos.filter((p) => keepPhotoPaths.includes(p.path));
+  // Keep the Builder's order (first photo = hero), not the stored order.
+  const keptPhotos = keepPhotoPaths
+    .map((path) => existingPhotos.find((p) => p.path === path))
+    .filter((p): p is BuildPhoto => Boolean(p));
   const keptDocs = existingDocs.filter((d) => keepDocPaths.includes(d.path));
   const photosToDelete = existingPhotos.filter((p) => !keepPhotoPaths.includes(p.path)).map((p) => p.path);
   const docsToDelete = existingDocs.filter((d) => !keepDocPaths.includes(d.path)).map((d) => d.path);

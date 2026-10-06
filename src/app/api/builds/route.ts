@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireBuilder } from "@/lib/requireBuilder";
+import { isDraftStale } from "@/lib/draftInputs";
 import {
   BuildDocument,
   BuildPhoto,
@@ -35,8 +36,9 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false });
 
   const withUrls = await Promise.all(
-    (builds ?? []).map(async (b) => ({
+    (builds ?? []).map(async ({ access_password_hash: _h, draft_input_hash: _d, ...b }) => ({
       ...b,
+      draft_stale: isDraftStale({ ...b, draft_input_hash: _d }),
       photoUrls: await signBuildPhotoUrls((b.photos ?? []) as BuildPhoto[]),
       documentUrls: await signBuildDocumentUrls((b.documents ?? []) as BuildDocument[]),
     }))
@@ -136,10 +138,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? "Could not save the build." }, { status: 500 });
   }
 
+  const { access_password_hash: _h, draft_input_hash: _d, ...safeBuild } = build;
   return NextResponse.json({
     ok: true,
     build: {
-      ...build,
+      ...safeBuild,
       photoUrls: await signBuildPhotoUrls(photos),
       documentUrls: await signBuildDocumentUrls(documents),
     },

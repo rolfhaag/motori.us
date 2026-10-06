@@ -17,6 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from("builds")
       .select("slug, updated_at")
       .eq("status", "published")
+      .eq("visibility", "public")
       .eq("hidden", false)
       .not("slug", "is", null);
     const seen = new Set(entries.map((e) => e.url));

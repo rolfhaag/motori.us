@@ -72,7 +72,10 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     applications: applicationsWithUrls,
-    builds: sortBuilds,
+    // Never ship password hashes (or the large draft body) to the browser.
+    builds: sortBuilds.map(
+      ({ access_password_hash: _h, draft_input_hash: _i, draft_content: _c, ...rest }) => rest
+    ),
     users: users ?? [],
     builders: builders ?? [],
   });

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import sharp from "sharp";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { draftInputHash } from "@/lib/draftInputs";
 import {
   BUILD_DOCUMENTS_BUCKET,
   BUILD_PHOTOS_BUCKET,
@@ -419,6 +420,7 @@ export async function runBuildDraft(buildId: string): Promise<void> {
         draft_status: "done",
         draft_error: null,
         draft_runs: build.draft_runs + 1,
+        draft_input_hash: draftInputHash(build),
       })
       .eq("id", buildId);
   } catch (err) {
