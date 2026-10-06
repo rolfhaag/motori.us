@@ -17,6 +17,7 @@ interface BuildRow {
   id: string;
   slug: string;
   title: string;
+  year: number | null;
   make: string | null;
   model: string | null;
   trim: string | null;
@@ -33,7 +34,7 @@ async function getBuild(slug: string): Promise<BuildRow | null> {
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
     .from("builds")
-    .select("id, slug, title, make, model, trim, vin, theme, photos, draft_content, builder_id, visibility, access_password_hash")
+    .select("id, slug, title, year, make, model, trim, vin, theme, photos, draft_content, builder_id, visibility, access_password_hash")
     .eq("slug", slug)
     .eq("status", "published")
     .eq("hidden", false)
@@ -118,6 +119,7 @@ export default async function DynamicBuildPage({ params }: { params: Promise<{ s
     "@context": "https://schema.org",
     "@type": "Vehicle",
     name: build.title,
+    ...(build.year ? { vehicleModelDate: String(build.year) } : {}),
     ...(build.make ? { manufacturer: { "@type": "Organization", name: build.make } } : {}),
     ...(build.model ? { model: build.model } : {}),
     ...(build.trim ? { vehicleConfiguration: build.trim } : {}),

@@ -6,6 +6,7 @@ import { createHash } from "crypto";
  * the AI saw), and so is VIN (never sent to the AI as page content).
  */
 export function draftInputHash(b: {
+  year?: number | null;
   make?: string | null;
   model?: string | null;
   trim?: string | null;
@@ -14,6 +15,7 @@ export function draftInputHash(b: {
   documents?: { path: string }[] | null;
 }): string {
   const payload = JSON.stringify({
+    year: b.year ?? null,
     make: (b.make ?? "").trim(),
     model: (b.model ?? "").trim(),
     trim: (b.trim ?? "").trim(),

@@ -14,7 +14,13 @@ import {
   uploadBuildPhoto,
 } from "@/lib/buildAssets";
 
-const THEME_MAX_LENGTH = 400; // generous ceiling for "2 sentences max"
+const THEME_MAX_LENGTH = 400;
+
+/** "1971" -> 1971; anything blank or implausible -> null. */
+function parseYear(v: FormDataEntryValue | null): number | null {
+  const n = Number(String(v ?? "").trim());
+  return Number.isInteger(n) && n >= 1885 && n <= 2100 ? n : null;
+} // generous ceiling for "2 sentences max"
 
 /** Builder's own Builds -- every status, newest first. */
 export async function GET(req: NextRequest) {
@@ -71,6 +77,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid action." }, { status: 400 });
   }
 
+  const year = parseYear(form.get("year"));
   const make = String(form.get("make") ?? "").trim();
   const model = String(form.get("model") ?? "").trim();
   const trim = String(form.get("trim") ?? "").trim();
@@ -112,7 +119,7 @@ export async function POST(req: NextRequest) {
   }
 
   const photos: BuildPhoto[] = photoPaths.map((path) => ({ path }));
-  const title = [make, model, trim].filter(Boolean).join(" ") || "Untitled Build";
+  const title = [year, make, model, trim].filter(Boolean).join(" ") || "Untitled Build";
   const status = "draft";
 
   const supabase = getSupabaseAdmin();
@@ -121,6 +128,7 @@ export async function POST(req: NextRequest) {
     .insert({
       builder_id: builderId,
       title,
+      year,
       make: make || null,
       model: model || null,
       trim: trim || null,

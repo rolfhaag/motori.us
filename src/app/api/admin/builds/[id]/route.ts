@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   ) {
     const { data: build } = await supabase
       .from("builds")
-      .select("status, slug, make, model, trim")
+      .select("status, slug, year, make, model, trim")
       .eq("id", id)
       .maybeSingle();
     if (!build) return NextResponse.json({ error: "Build not found." }, { status: 404 });
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const slug =
       publishing && !build.slug
-        ? await assignBuildSlug(build.make, build.model, build.trim)
+        ? await assignBuildSlug(build.year, build.make, build.model, build.trim)
         : build.slug;
 
     const { error } = await supabase

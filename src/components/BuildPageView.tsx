@@ -10,6 +10,7 @@ export interface ViewPhoto {
 export interface ViewBuild {
   slug: string;
   title: string;
+  year?: number | null;
   make: string | null;
   model: string | null;
   trim: string | null;
@@ -39,7 +40,7 @@ export default function BuildPageView({
   const [hero, ...rest] = photos;
   const chips = draft?.hero.specChips.length
     ? draft.hero.specChips
-    : ([build.make, build.model, build.trim].filter(Boolean) as string[]);
+    : ([build.year, build.make, build.model, build.trim].filter(Boolean) as string[]);
   const shareUrl = `${SITE_URL}/builds/${build.slug}/`;
   const thesis = draft?.hero.thesis || build.theme;
   const usedTabs = TABS.filter((t) => photos.some((p) => p.category === t));

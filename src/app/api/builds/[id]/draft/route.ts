@@ -78,9 +78,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { status: 409 }
     );
   }
-  if (!build.make || !build.model || !build.trim || !build.theme) {
+  if (!build.year || !build.make || !build.model || !build.trim || !build.theme) {
     return NextResponse.json(
-      { error: "Make, Model, Trim and Theme are required before generating a draft." },
+      { error: "Year, Make, Model, Trim and Theme are required before generating a draft." },
       { status: 400 }
     );
   }

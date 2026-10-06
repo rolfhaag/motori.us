@@ -83,6 +83,8 @@ redeploy (Vercel does this automatically on the next push, or you can hit
    - `0009_build_draft_state.sql` — AI draft state columns on `builds`.
    - `0010_build_private_and_stale.sql` — private publishing (visibility +
      password hash) and stale-draft tracking columns on `builds`.
+   - `0011_build_year.sql` — adds the `year` column to `builds` and sets it to
+     1971 on the E9 (its page heading now reads the year from this column).
 3. You only need to run each one once. Storage buckets for application
    photos and Build photos/documents are created automatically on first use
    — nothing to set up by hand for those.

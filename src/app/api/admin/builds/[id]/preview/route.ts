@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const supabase = getSupabaseAdmin();
   const { data: build } = await supabase
     .from("builds")
-    .select("id, title, status, visibility, slug, make, model, trim, vin, theme, photos, draft_content, builder_id")
+    .select("id, title, status, visibility, slug, year, make, model, trim, vin, theme, photos, draft_content, builder_id")
     .eq("id", id)
     .maybeSingle();
   if (!build) return NextResponse.json({ error: "Build not found." }, { status: 404 });
@@ -42,6 +42,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       status: build.status,
       visibility: build.visibility,
       slug: build.slug ?? "preview",
+      year: build.year,
       make: build.make,
       model: build.model,
       trim: build.trim,

@@ -69,6 +69,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Generate your page draft before submitting." }, { status: 400 });
   }
 
+  const yearRaw = String(form.get("year") ?? "").trim();
+  const yearNum = Number(yearRaw);
+  const year = Number.isInteger(yearNum) && yearNum >= 1885 && yearNum <= 2100 ? yearNum : null;
   const make = String(form.get("make") ?? "").trim();
   const model = String(form.get("model") ?? "").trim();
   const trim = String(form.get("trim") ?? "").trim();
@@ -109,6 +112,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (action === "submit") {
     const missing = [
+      !year && "Year",
       !make && "Make",
       !model && "Model",
       !trim && "Trim",
@@ -151,7 +155,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const finalPhotos: BuildPhoto[] = [...keptPhotos, ...newPhotoPaths.map((path) => ({ path }))];
   const finalDocs: BuildDocument[] = [...keptDocs, ...newDocs];
-  const title = [make, model, trim].filter(Boolean).join(" ") || existing.title;
+  const title = [year, make, model, trim].filter(Boolean).join(" ") || existing.title;
   const status =
     action === "submit" ? "submitted" : existing.status === "changes_requested" ? "draft" : existing.status;
 
@@ -159,6 +163,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from("builds")
     .update({
       title,
+      year,
       make: make || null,
       model: model || null,
       trim: trim || null,

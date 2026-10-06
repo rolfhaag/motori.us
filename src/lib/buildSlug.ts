@@ -8,12 +8,13 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
  * random suffix if needed.
  */
 export async function assignBuildSlug(
+  year: number | null,
   make: string | null,
   model: string | null,
   trim: string | null
 ): Promise<string> {
   const base =
-    [make, model, trim]
+    [year, make, model, trim]
       .filter(Boolean)
       .join(" ")
       .toLowerCase()

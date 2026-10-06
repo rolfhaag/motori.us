@@ -12,6 +12,7 @@ interface DocEntry {
 
 interface BuildRow {
   id: string;
+  year: number | null;
   make: string | null;
   model: string | null;
   trim: string | null;
@@ -55,6 +56,7 @@ const STATUS_META: Record<BuildStatus, { label: string; action: "edit" | "view" 
 function blankForm() {
   return {
     id: null as string | null,
+    year: "",
     make: "",
     model: "",
     trim: "",
@@ -173,12 +175,13 @@ export default function BuilderPage() {
     });
     setBasis(
       JSON.stringify([
-        b.make ?? "", b.model ?? "", b.trim ?? "", b.theme ?? "",
+        b.year ?? "", b.make ?? "", b.model ?? "", b.trim ?? "", b.theme ?? "",
         b.photos.map((p) => p.path).sort(), b.documents.map((d) => d.path).sort(),
       ])
     );
     setForm({
       id: b.id,
+      year: b.year ? String(b.year) : "",
       make: b.make ?? "",
       model: b.model ?? "",
       trim: b.trim ?? "",
@@ -213,7 +216,7 @@ export default function BuilderPage() {
   // The draft is out of date when saved inputs changed since it ran, or when
   // there are unsaved edits to what the AI reads (not VIN, notes, or hero order).
   const currentBasis = JSON.stringify([
-    form.make, form.model, form.trim, form.theme,
+    form.year === "" ? "" : Number(form.year), form.make, form.model, form.trim, form.theme,
     [...form.existingPhotos].sort(), form.existingDocuments.map((d) => d.path).sort(),
   ]);
   const draftStale =
@@ -236,6 +239,7 @@ export default function BuilderPage() {
   async function saveInPlace(): Promise<string | null> {
     const body = new FormData();
     body.set("action", "save");
+    body.set("year", form.year);
     body.set("make", form.make);
     body.set("model", form.model);
     body.set("trim", form.trim);
@@ -338,7 +342,8 @@ export default function BuilderPage() {
     try {
       const body = new FormData();
       body.set("action", action);
-      body.set("make", form.make);
+      body.set("year", form.year);
+    body.set("make", form.make);
       body.set("model", form.model);
       body.set("trim", form.trim);
       body.set("vin", form.vin);
@@ -474,6 +479,19 @@ export default function BuilderPage() {
                   </div>
                 )}
 
+                <div className="field">
+                  <label htmlFor="year">Year</label>
+                  <input
+                    id="year"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={form.year}
+                    disabled={locked}
+                    onChange={(e) => setForm((f) => ({ ...f, year: e.target.value.replace(/\D/g, "") }))}
+                    placeholder="Year"
+                  />
+                </div>
                 <div className="field">
                   <label htmlFor="make">Make</label>
                   <input
@@ -800,7 +818,7 @@ export default function BuilderPage() {
                       const meta = STATUS_META[b.status];
                       return (
                         <tr key={b.id}>
-                          <td>{[b.make, b.model, b.trim].filter(Boolean).join(" ") || "Untitled"}</td>
+                          <td>{[b.year, b.make, b.model, b.trim].filter(Boolean).join(" ") || "Untitled"}</td>
                           <td>
                             <span className={`badge ${b.status}`}>{meta.label}</span>
                           </td>

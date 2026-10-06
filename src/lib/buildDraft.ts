@@ -320,7 +320,7 @@ export async function runBuildDraft(buildId: string): Promise<void> {
       {
         type: "text",
         text: [
-          `Car: ${build.make ?? ""} ${build.model ?? ""} ${build.trim ?? ""}`.trim(),
+          `Car: ${build.year ?? ""} ${build.make ?? ""} ${build.model ?? ""} ${build.trim ?? ""}`.replace(/\s+/g, " ").trim(),
           `Theme (creative brief from the Builder): ${build.theme ?? "(none)"}`,
           `There are ${prepared.length} photos (numbered 1-${prepared.length}) and ${pdfs.length} documents.`,
         ].join("\n"),
