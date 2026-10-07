@@ -3,6 +3,7 @@ import Script from "next/script";
 import { versionedAsset } from "@/lib/assetVersion";
 import { loadLegacyPage } from "@/lib/loadLegacyPage";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { maskVin } from "@/lib/vin";
 
 const SLUG = "71e9S38B36";
 const FALLBACK_YEAR = 1971; // only used if the database can't be reached
@@ -14,13 +15,15 @@ export const dynamic = "force-dynamic";
 async function load() {
   const raw = loadLegacyPage("build-71e9S38B36.html");
   let year = FALLBACK_YEAR;
+  let vinMasked = "•••••••"; // masked on the server; the full VIN never enters this page
   try {
-    const { data } = await getSupabaseAdmin().from("builds").select("year").eq("slug", SLUG).maybeSingle();
+    const { data } = await getSupabaseAdmin().from("builds").select("year, vin").eq("slug", SLUG).maybeSingle();
     if (data?.year) year = data.year;
+    if (data?.vin) vinMasked = maskVin(data.vin) ?? vinMasked;
   } catch {
-    /* keep the fallback */
+    /* keep the fallbacks */
   }
-  const fill = (t: string) => t.replace(/\{\{YEAR\}\}/g, String(year));
+  const fill = (t: string) => t.replace(/\{\{YEAR\}\}/g, String(year)).replace(/\{\{VIN_MASKED\}\}/g, vinMasked);
   return {
     year,
     data: {

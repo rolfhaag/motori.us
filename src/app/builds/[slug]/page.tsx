@@ -8,6 +8,7 @@ import { versionedAsset } from "@/lib/assetVersion";
 import { SITE_URL } from "@/lib/siteUrl";
 import BuildPageView from "@/components/BuildPageView";
 import type { DraftContent } from "@/lib/buildDraft";
+import { maskVin } from "@/lib/vin";
 import PrivateBuildGate from "@/components/PrivateBuildGate";
 import { accessCookieName, hasAccess } from "@/lib/buildAccess";
 
@@ -137,7 +138,7 @@ export default async function DynamicBuildPage({ params }: { params: Promise<{ s
         />
       )}
       <BuildPageView
-        build={build}
+        build={{ ...build, vinMasked: maskVin(build.vin) }}
         draft={(build.draft_content as DraftContent | null) ?? null}
         photos={photos}
         handle={handle}

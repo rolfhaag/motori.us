@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireAdmin } from "@/lib/requireAdmin";
 import { BuildPhoto, signBuildPhotoUrls } from "@/lib/buildAssets";
+import { maskVin } from "@/lib/vin";
 
 /**
  * Everything the Admin preview page needs to render a Build -- in any status,
@@ -46,7 +47,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       make: build.make,
       model: build.model,
       trim: build.trim,
-      vin: build.vin,
+      id: build.id,
+      vinMasked: maskVin(build.vin),
       theme: build.theme,
     },
     draft: build.draft_content ?? null,

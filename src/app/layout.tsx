@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import AppProviders from "@/components/AppProviders";
 import AuthButton from "@/components/AuthButton";
 import OwnerShareKit from "@/components/OwnerShareKit";
+import VinToggle from "@/components/VinToggle";
 import { versionedAsset } from "@/lib/assetVersion";
 import "./globals.css";
 
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <AppProviders>
           <AuthButton />
           <OwnerShareKit />
+          <VinToggle />
           {children}
         </AppProviders>
         {/* No-ops until Analytics is switched on for this project in the

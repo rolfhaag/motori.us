@@ -210,11 +210,15 @@ h1.title i { font-style: italic; font-weight: 500; color: var(--accent); }
   letter-spacing: 0.02em;
   color: var(--ink);
 }
-/* Not wired up yet -- every VIN renders in full today. Once a Buyer/Browser
-   role exists, gating visibility is just adding this class server-side (or
-   swapping .vin-value's text for a masked placeholder) for viewers without
-   that role. */
-.vin.masked .vin-value { filter: blur(5px); user-select: none; }
+/* VINs are masked on the server for everyone; owners/admins get the eye button. */
+.vin .vin-toggle {
+  align-self: center;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0;
+  border: 1px solid var(--line); border-radius: 100px;
+  background: none; color: var(--ink-2); cursor: pointer;
+}
+.vin .vin-toggle:hover { border-color: var(--accent); color: var(--accent); }
 .heroSpecs {
   display: flex;
   flex-wrap: wrap;

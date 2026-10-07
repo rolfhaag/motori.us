@@ -14,7 +14,9 @@ export interface ViewBuild {
   make: string | null;
   model: string | null;
   trim: string | null;
-  vin: string | null;
+  id?: string;
+  /** Already masked on the server -- the full VIN is never passed in. */
+  vinMasked: string | null;
   theme: string | null;
 }
 
@@ -87,10 +89,10 @@ export default function BuildPageView({
             <p className="eyebrow">{handle || draft?.hero.eyebrow || "motori.us"}</p>
             <h1 className="title mid">{build.title}</h1>
             {thesis && <p className="thesis">{thesis}</p>}
-            {build.vin && (
-              <p className="vin">
+            {build.vinMasked && (
+              <p className="vin" data-vin-slug={build.slug} data-vin-id={build.id}>
                 <span className="vin-label">VIN</span>
-                <span className="vin-value">{build.vin}</span>
+                <span className="vin-value">{build.vinMasked}</span>
               </p>
             )}
             {chips.length > 0 && (

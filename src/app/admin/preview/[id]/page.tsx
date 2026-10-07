@@ -18,7 +18,7 @@ export default function AdminPreviewPage({ params }: { params: Promise<{ id: str
               ? "published privately"
               : "published"
             : `not public (status: ${b.status})`
-        } · VIN is visible here`
+        }`
       }
     />
   );

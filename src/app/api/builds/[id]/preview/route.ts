@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireBuilder } from "@/lib/requireBuilder";
 import { BuildPhoto, signBuildPhotoUrls } from "@/lib/buildAssets";
+import { maskVin } from "@/lib/vin";
 
 /** The signed-in Builder's own Build, shaped for the preview page. Owner only. */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -39,7 +40,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       make: build.make,
       model: build.model,
       trim: build.trim,
-      vin: build.vin,
+      id: build.id,
+      vinMasked: maskVin(build.vin),
       theme: build.theme,
     },
     draft: build.draft_content ?? null,
