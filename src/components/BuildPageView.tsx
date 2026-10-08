@@ -20,6 +20,18 @@ export interface ViewBuild {
   theme: string | null;
 }
 
+/** Bold a short leading "Label:" in a bullet, e.g. "Engine: S38B36 ...". */
+function boldLabel(text: string) {
+  const m = text.match(/^([A-Z][^:]{1,28}):\s+([\s\S]*)$/);
+  return m ? (
+    <>
+      <strong>{m[1]}:</strong> {m[2]}
+    </>
+  ) : (
+    text
+  );
+}
+
 const TABS = ["exterior", "interior", "mechanical"];
 
 /**
@@ -86,7 +98,7 @@ export default function BuildPageView({
       <main>
         <section className="hero compact">
           <div className="wrap">
-            <p className="eyebrow">{handle || draft?.hero.eyebrow || "motori.us"}</p>
+            <p className="eyebrow">{draft?.hero.eyebrow || handle || "motori.us"}</p>
             <h1 className="title mid">{build.title}</h1>
             {thesis && <p className="thesis">{thesis}</p>}
             {build.vinMasked && (
@@ -125,8 +137,8 @@ export default function BuildPageView({
           <section id="gallery">
             <div className="wrap">
               <p className="kicker">Gallery</p>
-              <h2 className="h">Photos</h2>
-              <p className="lede">Click any photo to see it larger.</p>
+              <h2 className="h">{draft?.extras?.galleryHeading || "Photos"}</h2>
+              <p className="lede">{draft?.extras?.galleryLede || "Click any photo to see it larger."}</p>
               {usedTabs.length > 1 && (
                 <div className="gallery-tabs" role="tablist">
                   <button className="gtab active" type="button" data-cat="all">
@@ -152,6 +164,7 @@ export default function BuildPageView({
                   Show more photos &rarr;
                 </button>
               </p>
+              {draft?.extras?.galleryNote && <p className="gallery-note">{draft.extras.galleryNote}</p>}
             </div>
           </section>
         )}
@@ -218,13 +231,14 @@ export default function BuildPageView({
                           {d.bullets.length > 0 && (
                             <ul>
                               {d.bullets.map((b, i) => (
-                                <li key={i}>{b}</li>
+                                <li key={i}>{boldLabel(b)}</li>
                               ))}
                             </ul>
                           )}
                         </div>
                       ))}
                     </div>
+                    {draft.extras?.baselineSource && <p className="provenance">{draft.extras.baselineSource}</p>}
                   </>
                 )}
               </div>
@@ -235,6 +249,7 @@ export default function BuildPageView({
                 <div className="wrap">
                   <p className="kicker">Where it&rsquo;s headed</p>
                   <h2 className="h">What&rsquo;s next, by category</h2>
+                  {draft.extras?.roadmapLede && <p className="lede">{draft.extras.roadmapLede}</p>}
                   <div className="speccards">
                     {draft.roadmap.map((r) => (
                       <div className="card" key={r.category}>
@@ -243,6 +258,13 @@ export default function BuildPageView({
                       </div>
                     ))}
                   </div>
+                  {draft.updates.length > 0 && (
+                    <p>
+                      <button className="cta-link" data-scrollto="updates">
+                        Follow the live decisions in Updates &rarr;
+                      </button>
+                    </p>
+                  )}
                 </div>
               </section>
             )}
@@ -252,6 +274,7 @@ export default function BuildPageView({
                 <div className="wrap">
                   <p className="kicker">The working log</p>
                   <h2 className="h">Updates</h2>
+                  {draft.extras?.updatesLede && <p className="lede">{draft.extras.updatesLede}</p>}
                   <div className="timeline">
                     {draft.updates.map((u, i) => (
                       <div className="entry" key={i}>
@@ -263,6 +286,7 @@ export default function BuildPageView({
                       </div>
                     ))}
                   </div>
+                  {draft.extras?.updatesNote && <p className="more-soon">{draft.extras.updatesNote}</p>}
                 </div>
               </section>
             )}
@@ -313,6 +337,7 @@ export default function BuildPageView({
       <footer>
         <div className="wrap">
           <span>motori.us: one open record for every build.</span>
+          {draft?.extras?.lastUpdated && <span className="fmono">Last updated {draft.extras.lastUpdated}</span>}
         </div>
       </footer>
     </>

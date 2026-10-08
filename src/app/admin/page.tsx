@@ -97,6 +97,23 @@ export default function AdminPage() {
   // Shown once after a private publish / password regeneration -- the server
   // only keeps a hash, so this is the only time the password is visible.
   const [privateShare, setPrivateShare] = useState<{ title: string; url: string; password: string } | null>(null);
+  // One-off E9 conversion: private dynamic copy for side-by-side comparison.
+  const [e9Copy, setE9Copy] = useState<{ url: string; password: string; photos: number } | null>(null);
+  const [e9Busy, setE9Busy] = useState(false);
+
+  async function createE9Copy() {
+    setE9Busy(true);
+    setError(null);
+    try {
+      const res = await authedFetch("/api/admin/e9-copy", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) setError(data.error ?? "Couldn't create the E9 copy.");
+      else setE9Copy(data);
+    } catch {
+      setError("Couldn't create the E9 copy.");
+    }
+    setE9Busy(false);
+  }
 
   const authedFetch = useCallback(
     async (url: string, init?: RequestInit) => {
@@ -436,6 +453,24 @@ export default function AdminPage() {
 
                 {tab === "builds" && (
                   <>
+                    <div className="status-banner">
+                      <span className="label">E9 conversion</span>
+                      <span>
+                        Builds a private, password-protected copy of the original E9 page from the dynamic template,
+                        for side-by-side comparison. The live E9 page is not changed.
+                      </span>
+                      <button className="btn-secondary" type="button" disabled={e9Busy} onClick={createE9Copy}>
+                        {e9Busy ? "Creating…" : e9Copy ? "Re-create copy" : "Create private E9 copy"}
+                      </button>
+                      {e9Copy && (
+                        <span>
+                          <a className="cta-link" href={e9Copy.url} target="_blank" rel="noreferrer">
+                            {e9Copy.url}
+                          </a>{" "}
+                          Password: <code>{e9Copy.password}</code> (shown once; re-creating issues a new one)
+                        </span>
+                      )}
+                    </div>
                     <table className="admin-table">
                       <thead>
                         <tr>

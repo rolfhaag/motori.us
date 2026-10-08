@@ -117,3 +117,10 @@ works before Phase 2 builds the actual features on top of it.
 Privy's Bitcoin embedded-wallet support isn't exposed in the current React
 SDK's auto-create config the way Ethereum's is — flagged for investigation
 before Phase 4 (the on-chain ownership record), not something needed now.
+
+## E9 conversion (private copy)
+
+No new migration. After deploying, open **/admin → Builds → "Create private E9 copy"**.
+It builds a password-protected dynamic copy of the E9 page at `/builds/e9-dynamic-preview/`
+(password shown once). The live `/builds/71e9S38B36` page is unchanged. Compare the two,
+then ask for the swap.

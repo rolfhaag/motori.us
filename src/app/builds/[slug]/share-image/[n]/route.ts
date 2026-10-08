@@ -4,7 +4,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { BUILD_PHOTOS_BUCKET, BuildPhoto } from "@/lib/buildAssets";
-import { E9_SLUG, E9_SHARE_PHOTOS } from "@/lib/shareKit";
+import { E9_SLUG, E9_SHARE_PHOTOS, pickShareIndexes } from "@/lib/shareKit";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +36,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const load = async (i: number): Promise<Buffer | null> => {
     const photos = (build.photos ?? []) as BuildPhoto[];
     if (photos.length > 0) {
-      const photo = photos[i];
+      // `i` is a position in the share set, not in the photo list.
+      const photo = photos[pickShareIndexes(photos)[i]];
       if (!photo) return null;
       const { data: file, error } = await getSupabaseAdmin().storage.from(BUILD_PHOTOS_BUCKET).download(photo.path);
       if (error || !file) return null;

@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireBuilder } from "@/lib/requireBuilder";
 import { SITE_URL } from "@/lib/siteUrl";
-import { E9_SHARE_PHOTOS, E9_SLUG, SHARE_IMAGE_COUNT, buildCaption } from "@/lib/shareKit";
+import { E9_SHARE_PHOTOS, E9_SLUG, pickShareIndexes, buildCaption } from "@/lib/shareKit";
 import type { DraftContent } from "@/lib/buildDraft";
 
 /**
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   }
 
   const photoCount = Array.isArray(build.photos) && build.photos.length > 0
-    ? build.photos.length
+    ? pickShareIndexes(build.photos).length
     : slug === E9_SLUG
     ? E9_SHARE_PHOTOS.length
     : 0;
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     url,
-    imageCount: Math.min(photoCount, SHARE_IMAGE_COUNT),
+    imageCount: photoCount,
     caption: buildCaption({ title: build.title, thesis, url, make: build.make, model: build.model }),
   });
 }

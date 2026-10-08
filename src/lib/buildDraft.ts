@@ -33,6 +33,18 @@ export interface DraftContent {
   updates: { date: string; title: string; text: string }[];
   // Optional: only present when an uploaded PDF is an itemized inspection report.
   inspection: { green: number; yellow: number; red: number; source: string } | null;
+  // Optional page-copy overrides. The AI never writes these; they exist so a
+  // hand-written page (the original E9) can keep its own headings and notes.
+  extras?: {
+    galleryHeading?: string;
+    galleryLede?: string;
+    galleryNote?: string;
+    roadmapLede?: string;
+    updatesLede?: string;
+    updatesNote?: string;
+    baselineSource?: string;
+    lastUpdated?: string;
+  };
 }
 
 
