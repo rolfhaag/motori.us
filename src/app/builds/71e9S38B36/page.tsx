@@ -4,6 +4,7 @@ import { versionedAsset } from "@/lib/assetVersion";
 import { loadLegacyPage } from "@/lib/loadLegacyPage";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { maskVin } from "@/lib/vin";
+import DynamicBuildPage, { generateMetadata as dynamicMetadata } from "../[slug]/page";
 
 const SLUG = "71e9S38B36";
 const FALLBACK_YEAR = 1971; // only used if the database can't be reached
@@ -35,7 +36,22 @@ async function load() {
   };
 }
 
+// Once the E9's content has been moved into its database row (Admin > Builds >
+// "Swap into live E9"), this URL renders from the database like every other
+// Build and the hand-built HTML below is no longer used.
+async function isConverted(): Promise<boolean> {
+  try {
+    const { data } = await getSupabaseAdmin().from("builds").select("draft_content").eq("slug", SLUG).maybeSingle();
+    return !!data?.draft_content;
+  } catch {
+    return false;
+  }
+}
+
+const params = Promise.resolve({ slug: SLUG });
+
 export async function generateMetadata(): Promise<Metadata> {
+  if (await isConverted()) return dynamicMetadata({ params });
   const { data } = await load();
   return {
     title: data.title,
@@ -60,6 +76,7 @@ export async function generateMetadata(): Promise<Metadata> {
 // No VIN here on purpose: it's slated to be gated behind a future
 // Buyer/Browser role, so it stays out of crawlable markup.
 export default async function BuildPage() {
+  if (await isConverted()) return DynamicBuildPage({ params });
   const { year, data } = await load();
   const jsonLd = {
     "@context": "https://schema.org",

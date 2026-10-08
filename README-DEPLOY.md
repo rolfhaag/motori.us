@@ -123,4 +123,6 @@ before Phase 4 (the on-chain ownership record), not something needed now.
 No new migration. After deploying, open **/admin → Builds → "Create private E9 copy"**.
 It builds a password-protected dynamic copy of the E9 page at `/builds/e9-dynamic-preview/`
 (password shown once). The live `/builds/71e9S38B36` page is unchanged. Compare the two,
-then ask for the swap.
+then use **"Swap into live E9…"** in the same panel. That copies the content and photos onto the
+real E9 row; `/builds/71e9S38B36` then renders from the database (same URL, QR and share links).
+The old hand-built page stays in the code as a fallback until it is removed in a later cleanup.

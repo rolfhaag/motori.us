@@ -29,6 +29,26 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = getSupabaseAdmin();
+  const body = await req.json().catch(() => ({}));
+
+  if (body.action === "swap") {
+    // Move the copy's content onto the real E9 row, then drop the copy row.
+    // The photos stay where they are in storage; the real row now points at them.
+    const { data: copy } = await supabase
+      .from("builds")
+      .select("id, photos, draft_content")
+      .eq("slug", COPY_SLUG)
+      .maybeSingle();
+    if (!copy) return NextResponse.json({ error: "Create the private copy first." }, { status: 404 });
+    const { error: upErr } = await supabase
+      .from("builds")
+      .update({ photos: copy.photos, draft_content: copy.draft_content, draft_status: "done" })
+      .eq("slug", E9_SLUG);
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+    await supabase.from("builds").delete().eq("id", copy.id);
+    return NextResponse.json({ url: `${SITE_URL}/builds/${E9_SLUG}/`, swapped: true });
+  }
+
   const { data: src } = await supabase
     .from("builds")
     .select("builder_id, title, year, make, model, trim, vin, theme")
