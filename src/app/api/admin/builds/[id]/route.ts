@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { notifyBuildDecided } from "@/lib/email/notify";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireAdmin } from "@/lib/requireAdmin";
@@ -82,6 +83,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       })
       .eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Emails: "approved and live" only when it goes public (private publishing
+    // is an Admin-only tool and sends nothing), or the needs-changes / denied
+    // email carrying the Admin's note.
+    const stamp = new Date().toISOString();
+    if (action === "publish") after(() => notifyBuildDecided(id, "live", { stamp }));
+    else if (action === "deny_resubmit") after(() => notifyBuildDecided(id, "needs_changes", { note: notes, stamp }));
+    else if (action === "deny_final") after(() => notifyBuildDecided(id, "denied", { note: notes, stamp }));
     // The plain password is returned exactly once, here.
     return NextResponse.json({
       ok: true,
@@ -107,6 +115,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         .update({ visibility: "public", access_password_hash: null })
         .eq("id", id);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      // First time this build goes public: send "approved and live" (once per build).
+      after(() => notifyBuildDecided(id, "live", { stamp: new Date().toISOString() }));
       return NextResponse.json({ ok: true, visibility: "public", slug: build.slug });
     }
     const newPassword = generateAccessPassword();

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { notifyBuildSubmitted } from "@/lib/email/notify";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireBuilder } from "@/lib/requireBuilder";
@@ -179,6 +180,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Emails: team@ gets "new/resubmitted build", the Builder gets "received".
+  if (action === "submit") {
+    const resubmitted = Boolean(existing.admin_notes);
+    const priorNote: string | null = existing.admin_notes ?? null;
+    after(() => notifyBuildSubmitted(id, { resubmitted, priorNote, stamp: new Date().toISOString() }));
   }
 
   if (photosToDelete.length > 0) await deleteBuildPhotos(photosToDelete).catch(() => {});

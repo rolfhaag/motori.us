@@ -89,6 +89,11 @@ export default function AdminPage() {
   const [role, setRole] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [tab, setTab] = useState<Tab>("builds");
+  // Links in the team@ notification emails open the right tab (?tab=applications).
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t === "applications" || t === "builds" || t === "builders" || t === "users") setTab(t);
+  }, []);
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const [selectedBuild, setSelectedBuild] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
@@ -270,6 +275,7 @@ export default function AdminPage() {
           <div className="wrap">
             <p className="eyebrow">Admin</p>
             <h1 className="title mid">Dashboard</h1>
+            <p><a href="/admin/emails/">Preview notification emails</a></p>
           </div>
         </section>
 
@@ -396,7 +402,7 @@ export default function AdminPage() {
                             {canDecide && (
                               <>
                                 <div className="field">
-                                  <label>Note to Builder (required for deny with resubmit)</label>
+                                  <label>Note to Builder (required for deny with resubmit; saved on the application and included in the email)</label>
                                   <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
                                 </div>
                                 <div className="btn-row">
@@ -558,7 +564,7 @@ export default function AdminPage() {
                                   </div>
                                 )}
                                 <div className="field">
-                                  <label>Note to Builder (required if requesting changes)</label>
+                                  <label>Note to Builder (required if requesting changes; saved on the build and included in the email)</label>
                                   <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
                                 </div>
                                 <div className="btn-row">

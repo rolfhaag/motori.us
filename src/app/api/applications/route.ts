@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { notifyApplicationSubmitted } from "@/lib/email/notify";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError, verifyRequestUser } from "@/lib/verifyRequestUser";
 import {
@@ -172,14 +173,33 @@ export async function POST(req: NextRequest) {
   };
 
   let saveError;
+  let savedId: string | undefined = existing?.id;
   if (existing) {
     ({ error: saveError } = await supabase.from("applications").update(payload).eq("id", existing.id));
   } else {
-    ({ error: saveError } = await supabase.from("applications").insert(payload));
+    const inserted = await supabase.from("applications").insert(payload).select("id").single();
+    saveError = inserted.error;
+    savedId = inserted.data?.id;
   }
 
   if (saveError) {
     return NextResponse.json({ error: saveError.message }, { status: 500 });
+  }
+
+  // Emails: team@ gets "new/resubmitted application", the applicant gets
+  // "received". Only on a real submit (not a draft save, and not a repeat
+  // submit of one already under review).
+  if (action === "submit" && savedId && existing?.status !== "submitted") {
+    const applicationId = savedId;
+    const resubmitted = existing?.status === "denied_resubmit";
+    const priorNote: string | null = existing?.admin_notes ?? null;
+    after(() =>
+      notifyApplicationSubmitted(applicationId, {
+        resubmitted,
+        priorNote,
+        stamp: new Date().toISOString(),
+      })
+    );
   }
 
   if (toDelete.length > 0) {

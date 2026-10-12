@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { notifyApplicationDecided } from "@/lib/email/notify";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireAdmin } from "@/lib/requireAdmin";
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: appError.message }, { status: 500 });
     }
 
+    after(() => notifyApplicationDecided(id, "approved", { stamp: now }));
     return NextResponse.json({ ok: true, status: "approved" });
   }
 
@@ -114,6 +116,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+    after(() => notifyApplicationDecided(id, "needs_changes", { note: notes, stamp: now }));
     return NextResponse.json({ ok: true, status: "denied_resubmit" });
   }
 
@@ -131,5 +134,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  after(() => notifyApplicationDecided(id, "denied", { note: notes, stamp: now }));
   return NextResponse.json({ ok: true, status: "denied_final" });
 }
