@@ -218,6 +218,7 @@ export default function AdminPage() {
       | "publish_private"
       | "new_password"
       | "make_public"
+      | "return_to_draft"
       | "deny_resubmit"
       | "deny_final"
       | "hide"
@@ -641,6 +642,23 @@ export default function AdminPage() {
                                     }}
                                   >
                                     Make public
+                                  </button>
+                                  <button
+                                    className="btn-secondary"
+                                    type="button"
+                                    disabled={busy}
+                                    title="Takes it offline and gives it back to the Builder as a draft, so photos and text can change. Publish it privately again after they resubmit."
+                                    onClick={() => {
+                                      if (
+                                        window.confirm(
+                                          "Return this build to draft? It goes offline until the Builder resubmits it and you publish it again."
+                                        )
+                                      ) {
+                                        decideBuild(build.id, "return_to_draft");
+                                      }
+                                    }}
+                                  >
+                                    Return to draft
                                   </button>
                                   <button className="btn-secondary" type="button" onClick={close}>
                                     Close

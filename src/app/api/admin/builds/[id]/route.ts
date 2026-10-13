@@ -5,12 +5,14 @@ import { AuthError } from "@/lib/verifyRequestUser";
 import { requireAdmin } from "@/lib/requireAdmin";
 import { assignBuildSlug } from "@/lib/buildSlug";
 import { generateAccessPassword, hashAccessPassword } from "@/lib/buildAccess";
+import { MAX_DRAFT_RUNS } from "@/lib/buildDraft";
 
 type BuildAction =
   | "publish"
   | "publish_private"
   | "new_password"
   | "make_public"
+  | "return_to_draft"
   | "deny_resubmit"
   | "deny_final"
   | "hide"
@@ -97,6 +99,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       slug,
       ...(action === "publish_private" ? { password } : {}),
     });
+  }
+
+  if (action === "return_to_draft") {
+    // Admin-only escape hatch for a PRIVATELY published build nobody has seen
+    // publicly: takes it offline and hands it back to the Builder as a draft
+    // so photos/text can change, then it's resubmitted and published again.
+    // The link (slug) is kept. Always leaves at least one draft refresh so the
+    // new photos can be worked into the page.
+    const { data: build } = await supabase
+      .from("builds")
+      .select("status, visibility, draft_runs")
+      .eq("id", id)
+      .maybeSingle();
+    if (!build) return NextResponse.json({ error: "Build not found." }, { status: 404 });
+    if (build.status !== "published" || build.visibility !== "private") {
+      return NextResponse.json(
+        { error: "Only a privately published build can be returned to draft." },
+        { status: 409 }
+      );
+    }
+    const { error } = await supabase
+      .from("builds")
+      .update({
+        status: "draft",
+        access_password_hash: null,
+        draft_runs: Math.min(build.draft_runs ?? 0, MAX_DRAFT_RUNS - 1),
+      })
+      .eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, status: "draft" });
   }
 
   if (action === "new_password" || action === "make_public") {
