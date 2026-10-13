@@ -1164,3 +1164,52 @@ footer .fmono { font-family: var(--mono); }
   width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; color: var(--ink);
   background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 10px; resize: vertical;
 }
+
+/* Home: a Builder's builds swipe sideways when there is more than one. */
+.thumbgrid.single { grid-template-columns: minmax(240px, 340px); }
+.carousel { position: relative; }
+.carousel-track {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  padding-bottom: 10px;
+  scrollbar-width: thin;
+}
+.carousel-track:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.carousel-track > .buildthumb {
+  flex: 0 0 min(320px, 78%);
+  scroll-snap-align: start;
+}
+.carousel-btn {
+  position: absolute;
+  top: calc(50% - 40px);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 2;
+}
+.carousel-btn:hover { border-color: var(--accent); color: var(--accent); }
+.carousel-btn.prev { left: -10px; }
+.carousel-btn.next { right: -10px; }
+.carousel-btn[hidden] { display: none; }
+@media (hover: none) { .carousel-btn { display: none; } }
+
+/* Builder page: builds stack in one column and scroll down the page. */
+.buildstack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 28px;
+  max-width: 760px;
+}

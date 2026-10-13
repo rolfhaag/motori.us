@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { versionedAsset } from "@/lib/assetVersion";
 import { loadLegacyPage } from "@/lib/loadLegacyPage";
+import { getHomeListings } from "@/lib/builderListings";
+import { homeBuilderBlocksHtml } from "@/lib/builderMarkup";
+
+// Builders and builds come from the database, so render per request.
+export const dynamic = "force-dynamic";
 
 const data = loadLegacyPage("home.html");
 
@@ -33,13 +38,15 @@ const LEGACY_HASH_REDIRECT = `
 })();
 `;
 
-export default function HomePage() {
+export default async function HomePage() {
+  const builders = await getHomeListings().catch(() => []);
+  const bodyHtml = data.bodyHtml.replace("<!--BUILDER_BLOCKS-->", homeBuilderBlocksHtml(builders));
   return (
     <>
       <Script id="legacy-hash-redirect" strategy="beforeInteractive">
         {LEGACY_HASH_REDIRECT}
       </Script>
-      <div dangerouslySetInnerHTML={{ __html: data.bodyHtml }} />
+      <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
       <Script src={versionedAsset("site.js")} strategy="afterInteractive" />
     </>
   );

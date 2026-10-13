@@ -258,3 +258,30 @@
     }, { passive: true });
   }
 })();
+
+// Swipeable build rows on the home page: arrow buttons for mouse users,
+// shown only when the row actually overflows and there is more to see.
+(function () {
+  var carousels = document.querySelectorAll('[data-carousel]');
+  carousels.forEach(function (c) {
+    var track = c.querySelector('.carousel-track');
+    var prev = c.querySelector('[data-carousel-prev]');
+    var next = c.querySelector('[data-carousel-next]');
+    if (!track || !prev || !next) return;
+    function update() {
+      var max = track.scrollWidth - track.clientWidth;
+      prev.hidden = max <= 4 || track.scrollLeft <= 4;
+      next.hidden = max <= 4 || track.scrollLeft >= max - 4;
+    }
+    function step(dir) {
+      var card = track.querySelector('.buildthumb');
+      var w = card ? card.getBoundingClientRect().width + 16 : track.clientWidth * 0.8;
+      track.scrollBy({ left: dir * w, behavior: 'smooth' });
+    }
+    prev.addEventListener('click', function () { step(-1); });
+    next.addEventListener('click', function () { step(1); });
+    track.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  });
+})();

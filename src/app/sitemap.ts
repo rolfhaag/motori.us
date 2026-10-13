@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SITE_URL } from "@/lib/siteUrl";
+import { getAllBuilderHandles } from "@/lib/builderListings";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .eq("hidden", false)
       .not("slug", "is", null);
     const seen = new Set(entries.map((e) => e.url));
+    for (const handle of await getAllBuilderHandles()) {
+      const url = `${SITE_URL}/builders/${handle}/`;
+      if (!seen.has(url)) {
+        entries.push({ url });
+        seen.add(url);
+      }
+    }
     for (const b of data ?? []) {
       if (seen.has(`${SITE_URL}/builds/${b.slug}/`)) continue; // static pages already listed
       entries.push({ url: `${SITE_URL}/builds/${b.slug}/`, lastModified: b.updated_at });
