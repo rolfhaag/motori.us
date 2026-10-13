@@ -62,11 +62,20 @@ export const notifyApplicationSubmitted = safely(
   async (applicationId: string, opts: { resubmitted: boolean; priorNote?: string | null; stamp: string }) => {
     const { data: app } = await getSupabaseAdmin()
       .from("applications")
-      .select("id, user_id, handle, photos")
+      .select("id, user_id, handle, photos, nominated_by")
       .eq("id", applicationId)
       .maybeSingle();
     if (!app) return;
     const photos = (app.photos ?? []) as string[];
+    let nominatedBy: string | null = null;
+    if (app.nominated_by) {
+      const { data: nominator } = await getSupabaseAdmin()
+        .from("builders")
+        .select("handle")
+        .eq("user_id", app.nominated_by)
+        .maybeSingle();
+      nominatedBy = nominator?.handle ?? null;
+    }
 
     await send(
       TEAM_EMAIL,
@@ -78,6 +87,7 @@ export const notifyApplicationSubmitted = safely(
         photoCount: photos.length,
         priorNote: opts.priorNote,
         heroUrl: heroImageUrl("app", app.id, photos[0]),
+        nominatedBy,
       }),
       `admin-application:${app.id}:${opts.stamp}`
     );

@@ -29,6 +29,7 @@ export interface AdminApplicationData {
   photoCount: number;
   priorNote?: string | null;
   heroUrl?: string | null;
+  nominatedBy?: string | null; // handle of the Builder who sent the nomination link
 }
 
 export function adminApplicationSubmitted(d: AdminApplicationData): RenderedEmail {
@@ -38,6 +39,7 @@ export function adminApplicationSubmitted(d: AdminApplicationData): RenderedEmai
       text: `${d.resubmitted ? "Resubmitted" : "Submitted"} ${d.submittedAt}. ${d.photoCount} ${d.photoCount === 1 ? "photo" : "photos"}, desired handle ${d.handle}.`,
     },
   ];
+  if (d.nominatedBy) blocks.unshift({ type: "p", text: `Nominated by ${d.nominatedBy}.` });
   if (d.resubmitted && d.priorNote) {
     blocks.push({ type: "note", label: "Your earlier note", text: d.priorNote });
   }
@@ -359,6 +361,7 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
         submittedAt: "Oct 12, 4:10 PM",
         photoCount: 3,
         heroUrl: hero,
+        nominatedBy: "mahlzeit-motorsport",
       }),
   },
   {

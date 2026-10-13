@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyApplicationSubmitted } from "@/lib/email/notify";
+import { isPlausibleToken } from "@/lib/nominations";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError, verifyRequestUser } from "@/lib/verifyRequestUser";
 import {
@@ -184,6 +185,36 @@ export async function POST(req: NextRequest) {
 
   if (saveError) {
     return NextResponse.json({ error: saveError.message }, { status: 500 });
+  }
+
+  // Applied through a Builder's nomination link? The first applicant claims
+  // it (never the nominator themselves), and Admin sees who vouched.
+  const nominationToken = form.get("nomination");
+  if (savedId && !existing?.nomination_id && isPlausibleToken(nominationToken)) {
+    try {
+      const { data: nomination } = await supabase
+        .from("nominations")
+        .select("id, builder_id")
+        .eq("token", nominationToken)
+        .is("claimed_application_id", null)
+        .maybeSingle();
+      if (nomination && nomination.builder_id !== privyUserId) {
+        const { data: claimed } = await supabase
+          .from("nominations")
+          .update({ claimed_application_id: savedId, claimed_at: new Date().toISOString() })
+          .eq("id", nomination.id)
+          .is("claimed_application_id", null)
+          .select("id");
+        if (claimed && claimed.length > 0) {
+          await supabase
+            .from("applications")
+            .update({ nominated_by: nomination.builder_id, nomination_id: nomination.id })
+            .eq("id", savedId);
+        }
+      }
+    } catch {
+      // Credit is best-effort; never fail an application over it.
+    }
   }
 
   // Emails: team@ gets "new/resubmitted application", the applicant gets

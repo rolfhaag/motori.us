@@ -1213,3 +1213,12 @@ footer .fmono { font-family: var(--mono); }
   margin-top: 28px;
   max-width: 760px;
 }
+
+/* Builder page: owner-only "Nominate" button + its share sheet. */
+.builder-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+.builderhead .builder-actions .share-link { margin-top: 2px; }
+.nom-sheet { max-width: 440px; }
+.nom-lede { margin: 0 0 16px; font-size: 14.5px; color: var(--ink-2); }
+.nom-small { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); word-break: break-word; }
+.nom-error { margin: 0; color: var(--bad, #b3202a); font-size: 14.5px; }
+.nom-photo { cursor: pointer; display: inline-flex; align-items: center; }

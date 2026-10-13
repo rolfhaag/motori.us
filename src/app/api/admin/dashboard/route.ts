@@ -52,10 +52,14 @@ export async function GET(req: NextRequest) {
 
   // Undecided items first (oldest of those first, already satisfied by the
   // ascending sort above), decided/terminal items after.
+  // Nominated applicants jump to the top of the undecided queue (still oldest
+  // first within each group; Array.sort is stable).
   const sortApplications = [...(applications ?? [])].sort((a, b) => {
     const aActive = ACTIVE_APPLICATION_STATUSES.includes(a.status) ? 0 : 1;
     const bActive = ACTIVE_APPLICATION_STATUSES.includes(b.status) ? 0 : 1;
-    return aActive - bActive;
+    if (aActive !== bActive) return aActive - bActive;
+    if (aActive === 0) return (a.nominated_by ? 0 : 1) - (b.nominated_by ? 0 : 1);
+    return 0;
   });
   const sortBuilds = [...(builds ?? [])].sort((a, b) => {
     const aActive = ACTIVE_BUILD_STATUSES.includes(a.status) ? 0 : 1;
@@ -63,9 +67,11 @@ export async function GET(req: NextRequest) {
     return aActive - bActive;
   });
 
+  const handleByUser = new Map((builders ?? []).map((b) => [b.user_id, b.handle]));
   const applicationsWithUrls = await Promise.all(
     sortApplications.map(async (app) => ({
       ...app,
+      nominated_by_handle: app.nominated_by ? (handleByUser.get(app.nominated_by) ?? null) : null,
       photoUrls: await signApplicationPhotoUrls(app.photos ?? []),
     }))
   );

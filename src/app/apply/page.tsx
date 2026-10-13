@@ -39,6 +39,33 @@ export default function ApplyPage() {
   const [saving, setSaving] = useState<"save" | "submit" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState(false);
+  // Arrived via a Builder's nomination link (/apply/?n=<token>). The token is
+  // kept in localStorage so it survives the login step.
+  const [nominationToken, setNominationToken] = useState<string | null>(null);
+  const [nominator, setNominator] = useState<string | null>(null);
+
+  useEffect(() => {
+    let token: string | null = null;
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get("n");
+      if (fromUrl && /^[A-Za-z0-9_-]{8,32}$/.test(fromUrl)) {
+        token = fromUrl;
+        localStorage.setItem("motori_nomination", fromUrl);
+      } else {
+        token = localStorage.getItem("motori_nomination");
+      }
+    } catch {
+      // Private mode or blocked storage: the token in the URL still works this visit.
+      const fromUrl = new URLSearchParams(window.location.search).get("n");
+      token = fromUrl && /^[A-Za-z0-9_-]{8,32}$/.test(fromUrl) ? fromUrl : null;
+    }
+    if (!token) return;
+    setNominationToken(token);
+    fetch(`/api/nominations?token=${encodeURIComponent(token)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setNominator(d?.name ?? null))
+      .catch(() => {});
+  }, []);
 
   const fetchMe = useCallback(async () => {
     setLoadingMe(true);
@@ -100,6 +127,7 @@ export default function ApplyPage() {
       form.set("socials", socials);
       form.set("existingPhotos", JSON.stringify(existingPhotos));
       newPhotos.forEach((f) => form.append("newPhotos", f));
+      if (nominationToken) form.set("nomination", nominationToken);
 
       const res = await fetch("/api/applications", {
         method: "POST",
@@ -188,6 +216,12 @@ export default function ApplyPage() {
 
         <section>
           <div className="wrap">
+            {nominator && (
+              <div className="status-banner">
+                <span className="label">Nominated</span>
+                <span>{nominator} nominated your car for motori.us. Tell us about it below.</span>
+              </div>
+            )}
             {!authenticated ? (
               <div className="formcard">
                 <p className="lede" style={{ marginBottom: 20 }}>

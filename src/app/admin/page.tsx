@@ -15,6 +15,7 @@ interface Application {
   admin_notes: string | null;
   created_at: string;
   reapply_after: string | null;
+  nominated_by_handle?: string | null;
 }
 
 interface Build {
@@ -350,7 +351,14 @@ export default function AdminPage() {
                               setNotes("");
                             }}
                           >
-                            <td>{app.handle}</td>
+                            <td>
+                              {app.handle}
+                              {app.nominated_by_handle && (
+                                <span className="badge" title={`Nominated by ${app.nominated_by_handle}`} style={{ marginLeft: 8 }}>
+                                  nominated
+                                </span>
+                              )}
+                            </td>
                             <td>
                               <span className={`badge ${app.status}`}>{app.status.replace("_", " ")}</span>
                             </td>
@@ -373,6 +381,12 @@ export default function AdminPage() {
                         return (
                           <div className="detail-panel">
                             <h4>{app.handle}</h4>
+                            {app.nominated_by_handle && (
+                              <div className="detail-row">
+                                <span className="label">Nominated by</span>
+                                {app.nominated_by_handle}
+                              </div>
+                            )}
                             <div className="detail-row">
                               <span className="label">Description</span>
                               {app.description}
