@@ -615,42 +615,40 @@ p.lede { color: var(--ink-2); max-width: 66ch; font-size: 18px; margin: 0 0 8px;
 .photo .cap { padding: 10px 12px; font-size: 13.5px; font-weight: 600; margin: 0; }
 .photo:hover img { opacity: 0.9; }
 
-/* Lightbox */
-.lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: rgba(10, 9, 7, 0.92);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+/* Photo viewer (PhotoSwipe), themed to match the site */
+.pswp {
+  --pswp-bg: #0a0907;
+  --pswp-placeholder-bg: #1a1814;
+  --pswp-icon-color: #EDE7DA;
+  --pswp-icon-color-secondary: #0a0907;
+  --pswp-icon-stroke-color: #0a0907;
+  --pswp-error-text-color: #B2A997;
+  --pswp-root-z-index: 100;
+  font-family: var(--body);
 }
-.lightbox[hidden] { display: none; }
-.lightbox figure { margin: 0; max-width: 92vw; max-height: 82vh; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.lightbox img { max-width: 92vw; max-height: 74vh; object-fit: contain; border-radius: 4px; }
-.lightbox figcaption { color: #EDE7DA; font-size: 14.5px; font-family: var(--body); text-align: center; }
-.lightbox-close, .lightbox-prev, .lightbox-next {
+.pswp__counter {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #B2A997;
+  margin-inline-start: 6px;
+}
+.pswp__button { opacity: .85; }
+.pswp__button:hover, .pswp__button:focus-visible { opacity: 1; }
+.pswp__motori-caption {
   position: absolute;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.25);
+  left: 0; right: 0; bottom: 0;
+  z-index: 10;
+  padding: 36px 20px max(16px, env(safe-area-inset-bottom));
+  background: linear-gradient(to top, rgba(10,9,7,.85), rgba(10,9,7,0));
   color: #EDE7DA;
-  border-radius: 100px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 14.5px;
+  line-height: 1.4;
+  text-align: center;
+  pointer-events: none;
 }
-.lightbox-close { top: 18px; right: 18px; width: 40px; height: 40px; font-size: 20px; }
-.lightbox-prev, .lightbox-next { top: 50%; transform: translateY(-50%); width: 46px; height: 46px; font-size: 22px; }
-.lightbox-prev { left: 12px; }
-.lightbox-next { right: 12px; }
-.lightbox-close:hover, .lightbox-prev:hover, .lightbox-next:hover { background: rgba(255,255,255,0.18); }
-.lightbox-count { font-family: var(--mono); font-size: 12px; color: #B2A997; }
-@media (max-width: 560px) {
-  .lightbox-prev, .lightbox-next { width: 40px; height: 40px; }
-}
+.pswp__motori-caption[style*="display: none"] { display: none; }
+/* Hide the caption while the photo is zoomed in so it never covers detail. */
+.pswp--zoomed-in .pswp__motori-caption { opacity: 0; transition: opacity .2s; }
 
 /* Share modal */
 .share-modal {

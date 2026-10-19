@@ -1,5 +1,6 @@
 import type { DraftContent } from "@/lib/buildDraft";
 import { SITE_URL } from "@/lib/siteUrl";
+import GalleryLightbox from "@/components/GalleryLightbox";
 
 export interface ViewPhoto {
   url: string;
@@ -313,26 +314,7 @@ export default function BuildPageView({
         )}
       </main>
 
-      {photos.length > 0 && (
-        <div className="lightbox" id="lightbox" hidden>
-          <button className="lightbox-close" id="lightbox-close" aria-label="Close">
-            &times;
-          </button>
-          <button className="lightbox-prev" id="lightbox-prev" aria-label="Previous photo">
-            &larr;
-          </button>
-          <figure>
-            <img id="lightbox-img" src="" alt="" />
-            <figcaption>
-              <span id="lightbox-cap"></span>
-              <span className="lightbox-count" id="lightbox-count"></span>
-            </figcaption>
-          </figure>
-          <button className="lightbox-next" id="lightbox-next" aria-label="Next photo">
-            &rarr;
-          </button>
-        </div>
-      )}
+      {photos.length > 0 && <GalleryLightbox />}
 
       <footer>
         <div className="wrap">

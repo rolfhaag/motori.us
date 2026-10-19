@@ -202,61 +202,6 @@
 
     gRender();
   }
-
-  /* ---------- Lightbox (build pages only; no-ops elsewhere) ---------- */
-  var photos = Array.prototype.slice.call(document.querySelectorAll('.photo'));
-  if (photos.length) {
-    var lb = document.getElementById('lightbox');
-    var lbImg = document.getElementById('lightbox-img');
-    var lbCap = document.getElementById('lightbox-cap');
-    var lbCount = document.getElementById('lightbox-count');
-    var current = 0;
-    var touchStartX = null;
-
-    function show(i) {
-      current = (i + photos.length) % photos.length;
-      var img = photos[current].querySelector('img');
-      var cap = photos[current].querySelector('.cap');
-      lbImg.src = img.src;
-      lbImg.alt = img.alt || '';
-      lbCap.textContent = cap ? cap.textContent : '';
-      lbCount.textContent = (current + 1) + ' / ' + photos.length;
-    }
-    function open(i) {
-      show(i);
-      lb.hidden = false;
-      document.body.style.overflow = 'hidden';
-    }
-    function close() {
-      lb.hidden = true;
-      document.body.style.overflow = '';
-    }
-
-    photos.forEach(function (btn, i) {
-      btn.addEventListener('click', function () { open(i); });
-    });
-    document.getElementById('lightbox-close').addEventListener('click', close);
-    document.getElementById('lightbox-prev').addEventListener('click', function () { show(current - 1); });
-    document.getElementById('lightbox-next').addEventListener('click', function () { show(current + 1); });
-    lb.addEventListener('click', function (e) { if (e.target === lb) close(); });
-
-    document.addEventListener('keydown', function (e) {
-      if (lb.hidden) return;
-      if (e.key === 'Escape') close();
-      else if (e.key === 'ArrowLeft') show(current - 1);
-      else if (e.key === 'ArrowRight') show(current + 1);
-    });
-
-    lb.addEventListener('touchstart', function (e) {
-      touchStartX = e.changedTouches[0].clientX;
-    }, { passive: true });
-    lb.addEventListener('touchend', function (e) {
-      if (touchStartX === null) return;
-      var dx = e.changedTouches[0].clientX - touchStartX;
-      if (Math.abs(dx) > 40) { dx < 0 ? show(current + 1) : show(current - 1); }
-      touchStartX = null;
-    }, { passive: true });
-  }
 })();
 
 // Swipeable build rows on the home page: arrow buttons for mouse users,
