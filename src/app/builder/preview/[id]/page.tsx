@@ -10,6 +10,7 @@ export default function BuilderPreviewPage({ params }: { params: Promise<{ id: s
     <BuildPreview
       apiUrl={`/api/builds/${id}/preview`}
       backHref="/builder"
+      editHref={`/builder?edit=${id}`}
       backLabel="Back to your dashboard"
       note={(b) =>
         b.status === "published"

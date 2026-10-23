@@ -339,12 +339,109 @@ export function nudgeApplication(): RenderedEmail {
   };
 }
 
+// ------------------------------------------------- following + legal notices
+
+export interface MarketingFooter {
+  reason: string;
+  unsubscribeUrl: string;
+  postalAddress: string;
+}
+
+/** Double opt-in: sent when someone asks to follow. Nothing else is sent until they confirm. */
+export function subscribeConfirm(d: { scopeLabel: string; confirmUrl: string }): RenderedEmail {
+  return {
+    subject: `Confirm: follow ${d.scopeLabel} on motori.us`,
+    ...renderEmail({
+      preheader: "One tap to confirm. If this wasn't you, ignore this email.",
+      lead: "Confirm your subscription.",
+      buttons: [{ label: "Yes, send me updates", url: d.confirmUrl }],
+      blocks: [
+        { type: "p", text: `You asked to follow ${d.scopeLabel} on motori.us. Confirm and we’ll email you when there’s something new.` },
+        { type: "p", text: "If this wasn’t you, ignore this email. You won’t hear from us again." },
+      ],
+      footerNote: "motori.us: one open record for every build.",
+    }),
+  };
+}
+
+export function newBuildAnnouncement(d: {
+  buildTitle: string;
+  builderName: string;
+  blurb?: string | null;
+  heroUrl?: string | null;
+  pageUrl: string;
+  marketing: MarketingFooter;
+}): RenderedEmail {
+  const blocks: EmailBlock[] = [];
+  if (d.blurb) blocks.push({ type: "p", text: d.blurb });
+  blocks.push({ type: "p", text: `Documented by ${d.builderName} on motori.us.` });
+  return {
+    subject: `New on motori.us: ${d.buildTitle}`,
+    ...renderEmail({
+      preheader: `${d.buildTitle}, documented by ${d.builderName}.`,
+      lead: `${d.buildTitle} is live.`,
+      heroUrl: d.heroUrl,
+      buttons: [{ label: "See the build", url: d.pageUrl }],
+      blocks,
+      marketing: d.marketing,
+    }),
+  };
+}
+
+/** Admin-written update to followers. Paragraphs are plain text, separated by blank lines. */
+export function broadcastEmail(d: {
+  subject: string;
+  lead: string;
+  paragraphs: string[];
+  buttonLabel?: string | null;
+  buttonUrl?: string | null;
+  heroUrl?: string | null;
+  marketing: MarketingFooter;
+}): RenderedEmail {
+  return {
+    subject: d.subject,
+    ...renderEmail({
+      preheader: d.paragraphs[0]?.slice(0, 110) ?? d.lead,
+      lead: d.lead,
+      heroUrl: d.heroUrl,
+      buttons: d.buttonLabel && d.buttonUrl ? [{ label: d.buttonLabel, url: d.buttonUrl }] : [],
+      blocks: d.paragraphs.map((text) => ({ type: "p" as const, text })),
+      signOff: true,
+      marketing: d.marketing,
+    }),
+  };
+}
+
+/** Service notice to account holders when a legal document changes. */
+export function termsUpdated(d: {
+  items: { title: string; version: string; summary: string; url: string }[];
+  actionUrl: string;
+}): RenderedEmail {
+  return {
+    subject: "We’ve updated our terms",
+    ...renderEmail({
+      preheader: "Please review and accept the latest version.",
+      lead: "We’ve updated our terms.",
+      buttons: [{ label: "Review and accept", url: d.actionUrl }],
+      blocks: [
+        { type: "p", text: "Here is what changed:" },
+        { type: "ul", items: d.items.map((i) => `${i.title} (version ${i.version}): ${i.summary}`) },
+        {
+          type: "p",
+          text: "You can read the full text on the site. We’ll ask you to accept the new versions the next time you use your Builder account. Browsing the site doesn’t change.",
+        },
+      ],
+      signOff: true,
+    }),
+  };
+}
+
 // ---------------------------------------------------------------- registry
 
 export interface TemplateDef {
   id: string;
   label: string;
-  audience: "team" | "applicant" | "builder";
+  audience: "team" | "applicant" | "builder" | "subscriber";
   render: (hero: string | null) => RenderedEmail;
 }
 
@@ -471,4 +568,57 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
     render: (hero) => nudgeBuild({ buildTitle: "1973 BMW 3.0 CSL", heroUrl: hero }),
   },
   { id: "nudge-application", label: "11b. Gentle nudge (application)", audience: "applicant", render: () => nudgeApplication() },
+  {
+    id: "subscribe-confirm",
+    label: "12. Confirm subscription (to a follower)",
+    audience: "subscriber",
+    render: () => subscribeConfirm({ scopeLabel: "new builds", confirmUrl: `${SITE_URL}/subscribe/confirm?token=sample` }),
+  },
+  {
+    id: "new-build-announcement",
+    label: "13. New build announcement (to followers)",
+    audience: "subscriber",
+    render: (hero) =>
+      newBuildAnnouncement({
+        buildTitle: "1973 BMW 3.0 CSL",
+        builderName: "Sample Garage",
+        blurb: "A ground-up restoration documented step by step.",
+        heroUrl: hero,
+        pageUrl: `${SITE_URL}/builds/sample`,
+        marketing: {
+          reason: "You’re getting this because you follow new builds on motori.us.",
+          unsubscribeUrl: `${SITE_URL}/unsubscribe?token=sample`,
+          postalAddress: "Sample postal address",
+        },
+      }),
+  },
+  {
+    id: "broadcast",
+    label: "14. Newsletter / update (to followers)",
+    audience: "subscriber",
+    render: (hero) =>
+      broadcastEmail({
+        subject: "What’s new on motori.us",
+        lead: "A few new builds this month.",
+        paragraphs: ["Here is a short note written by the motori.us team.", "A second paragraph with more detail."],
+        buttonLabel: "Visit motori.us",
+        buttonUrl: SITE_URL,
+        heroUrl: hero,
+        marketing: {
+          reason: "You’re getting this because you follow motori.us.",
+          unsubscribeUrl: `${SITE_URL}/unsubscribe?token=sample`,
+          postalAddress: "Sample postal address",
+        },
+      }),
+  },
+  {
+    id: "terms-updated",
+    label: "15. Terms updated (to account holders)",
+    audience: "builder",
+    render: () =>
+      termsUpdated({
+        items: [{ title: "Builder Terms", version: "2027-01-01", summary: "Adds terms for optional on-chain records.", url: `${SITE_URL}/builder-terms` }],
+        actionUrl: `${SITE_URL}/builder`,
+      }),
+  },
 ];

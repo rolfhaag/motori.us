@@ -277,7 +277,10 @@ export default function AdminPage() {
           <div className="wrap">
             <p className="eyebrow">Admin</p>
             <h1 className="title mid">Dashboard</h1>
-            <p><a href="/admin/emails/">Preview notification emails</a></p>
+            <p>
+              <a href="/admin/emails/">Preview notification emails</a> · <a href="/admin/newsletter/">Newsletter</a> ·{" "}
+              <a href="/admin/legal/">Terms and privacy</a>
+            </p>
           </div>
         </section>
 

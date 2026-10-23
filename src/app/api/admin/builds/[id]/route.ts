@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyBuildDecided } from "@/lib/email/notify";
+import { notifyFollowersOfNewBuild } from "@/lib/email/followers";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireAdmin } from "@/lib/requireAdmin";
@@ -80,7 +81,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         status: newStatus,
         admin_notes: notes,
         ...(publishing ? { slug } : {}),
-        ...(action === "publish" ? { visibility: "public", access_password_hash: null } : {}),
+        ...(action === "publish"
+          ? { visibility: "public", access_password_hash: null, published_at: new Date().toISOString() }
+          : {}),
         ...(action === "publish_private" ? { visibility: "private", access_password_hash: hashAccessPassword(password) } : {}),
       })
       .eq("id", id);
@@ -89,7 +92,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // is an Admin-only tool and sends nothing), or the needs-changes / denied
     // email carrying the Admin's note.
     const stamp = new Date().toISOString();
-    if (action === "publish") after(() => notifyBuildDecided(id, "live", { stamp }));
+    if (action === "publish") {
+      after(() => notifyBuildDecided(id, "live", { stamp }));
+      after(() => notifyFollowersOfNewBuild(id));
+    }
     else if (action === "deny_resubmit") after(() => notifyBuildDecided(id, "needs_changes", { note: notes, stamp }));
     else if (action === "deny_final") after(() => notifyBuildDecided(id, "denied", { note: notes, stamp }));
     // The plain password is returned exactly once, here.
@@ -144,11 +150,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (action === "make_public") {
       const { error } = await supabase
         .from("builds")
-        .update({ visibility: "public", access_password_hash: null })
+        .update({ visibility: "public", access_password_hash: null, published_at: new Date().toISOString() })
         .eq("id", id);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       // First time this build goes public: send "approved and live" (once per build).
       after(() => notifyBuildDecided(id, "live", { stamp: new Date().toISOString() }));
+      after(() => notifyFollowersOfNewBuild(id));
       return NextResponse.json({ ok: true, visibility: "public", slug: build.slug });
     }
     const newPassword = generateAccessPassword();

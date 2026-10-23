@@ -43,6 +43,9 @@ export default function ApplyPage() {
   // kept in localStorage so it survives the login step.
   const [nominationToken, setNominationToken] = useState<string | null>(null);
   const [nominator, setNominator] = useState<string | null>(null);
+  // Builder Terms: shown as a required checkbox until the current version is accepted.
+  const [builderTerms, setBuilderTerms] = useState<{ title: string; version: string; path: string; accepted: boolean } | null>(null);
+  const [agreeBuilderTerms, setAgreeBuilderTerms] = useState(false);
 
   useEffect(() => {
     let token: string | null = null;
@@ -74,6 +77,12 @@ export default function ApplyPage() {
       const res = await fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } });
       const data: MeResponse = await res.json();
       setMe(data);
+      try {
+        const lr = await fetch("/api/legal/status", { headers: { Authorization: `Bearer ${token}` } });
+        if (lr.ok) setBuilderTerms((await lr.json()).builderTerms ?? null);
+      } catch {
+        /* the server still enforces acceptance on submit */
+      }
       if (data.application) {
         setHandle(data.application.handle);
         setDescription(data.application.description);
@@ -128,6 +137,9 @@ export default function ApplyPage() {
       form.set("existingPhotos", JSON.stringify(existingPhotos));
       newPhotos.forEach((f) => form.append("newPhotos", f));
       if (nominationToken) form.set("nomination", nominationToken);
+      if (action === "submit" && builderTerms && !builderTerms.accepted) {
+        form.set("acceptLegal", JSON.stringify([{ type: "builder_terms", version: builderTerms.version }]));
+      }
 
       const res = await fetch("/api/applications", {
         method: "POST",
@@ -372,6 +384,28 @@ export default function ApplyPage() {
                   </div>
                 </div>
 
+                {builderTerms &&
+                  (builderTerms.accepted ? (
+                    <p className="consent-ok">
+                      You&rsquo;ve accepted the <a href={builderTerms.path} target="_blank" rel="noopener noreferrer">Builder Terms</a>.
+                    </p>
+                  ) : (
+                    <label className="consent-check">
+                      <input
+                        type="checkbox"
+                        checked={agreeBuilderTerms}
+                        onChange={(e) => setAgreeBuilderTerms(e.target.checked)}
+                      />
+                      <span>
+                        I have read and agree to the{" "}
+                        <a href={builderTerms.path} target="_blank" rel="noopener noreferrer">
+                          Builder Terms
+                        </a>
+                        . I&rsquo;m responsible for what I publish, and motori.us doesn&rsquo;t verify Builder content.
+                      </span>
+                    </label>
+                  ))}
+
                 {error && <p className="form-error">{error}</p>}
                 {lastSaved && !error && <p className="hint">Saved.</p>}
 
@@ -387,7 +421,12 @@ export default function ApplyPage() {
                   <button
                     className="btn-primary"
                     type="button"
-                    disabled={saving !== null}
+                    disabled={saving !== null || (!!builderTerms && !builderTerms.accepted && !agreeBuilderTerms)}
+                    title={
+                      builderTerms && !builderTerms.accepted && !agreeBuilderTerms
+                        ? "Please agree to the Builder Terms first"
+                        : undefined
+                    }
                     onClick={() => submitForm("submit")}
                   >
                     {saving === "submit"

@@ -1220,3 +1220,103 @@ footer .fmono { font-family: var(--mono); }
 .nom-small { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); word-break: break-word; }
 .nom-error { margin: 0; color: var(--bad, #b3202a); font-size: 14.5px; }
 .nom-photo { cursor: pointer; display: inline-flex; align-items: center; }
+
+/* ---------- Legal pages, terms prompt, legal bar, follow box ---------- */
+.legal { max-width: 760px; margin-top: 8px; }
+.legal h2 { font-family: var(--display); font-size: 21px; font-weight: 600; margin: 34px 0 10px; }
+.legal p, .legal li { font-size: 16px; line-height: 1.65; color: var(--ink); }
+.legal p { margin: 0 0 14px; }
+.legal ul { margin: 0 0 14px; padding-left: 22px; }
+.legal li { margin: 0 0 8px; }
+.legal a { color: var(--accent); }
+.legal-links { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 36px 0 0; font-size: 14.5px; }
+.legal-links a { color: var(--ink-2); }
+.legal-links a:hover { color: var(--accent); }
+.legal-earlier { margin: 14px 0 0; font-size: 13.5px; color: var(--ink-2); font-family: var(--mono); }
+.legal-earlier a { color: var(--ink-2); }
+
+.terms-gate { max-width: 460px; align-items: stretch; text-align: left; }
+.terms-gate .share-modal-title { text-align: left; }
+.terms-gate-lede { margin: 0; font-size: 14.5px; color: var(--ink-2); }
+.terms-gate-list { margin: 0; padding-left: 20px; font-size: 15px; }
+.terms-gate-list li { margin: 0 0 8px; }
+.terms-gate-list a { color: var(--accent); }
+.terms-gate-ver { color: var(--ink-2); font-family: var(--mono); font-size: 12px; }
+.terms-gate-sum { color: var(--ink-2); font-size: 13.5px; margin-top: 2px; }
+.terms-gate-check { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; line-height: 1.45; cursor: pointer; }
+.terms-gate-check input { margin-top: 3px; width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--accent); }
+
+.legal-bar {
+  border-top: 1px solid var(--line);
+  padding: 14px 0 22px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.legal-bar .wrap { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.legal-bar a { color: var(--ink-2); text-decoration: none; }
+.legal-bar a:hover { color: var(--accent); text-decoration: underline; }
+
+.consent-check { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; line-height: 1.45; cursor: pointer; margin: 6px 0 16px; }
+.consent-check input { margin-top: 3px; width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--accent); }
+.consent-check a { color: var(--accent); }
+.consent-ok { font-size: 13.5px; color: var(--ink-2); margin: 6px 0 16px; }
+.consent-ok a { color: var(--accent); }
+
+.build-disclosure { margin: 22px 0 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.build-disclosure a { color: var(--ink-2); }
+
+.followbox {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px 22px;
+  max-width: 620px;
+}
+.followbox h3 { font-family: var(--display); font-size: 19px; font-weight: 600; margin: 0 0 4px; }
+.followbox .follow-sub { margin: 0 0 14px; font-size: 14.5px; color: var(--ink-2); }
+.followbox form { display: flex; flex-wrap: wrap; gap: 10px; }
+.followbox input[type="email"] {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 11px 13px;
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.followbox input[type="email"]:focus { outline: none; border-color: var(--accent); }
+.followbox .follow-fine { margin: 10px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.followbox .follow-fine a { color: var(--ink-2); }
+.followbox .follow-msg { margin: 10px 0 0; font-size: 14.5px; }
+.followbox .follow-msg.bad { color: var(--bad, #b3202a); }
+.followbox .follow-hp { position: absolute; left: -5000px; width: 1px; height: 1px; opacity: 0; }
+.followbox .follow-alt { margin: 12px 0 0; font-size: 13.5px; color: var(--ink-2); }
+.followbox .follow-alt a { color: var(--accent); }
+.follow-section { padding: 10px 0 40px; }
+
+/* Required-field messages in the Build form */
+.field-error { color: var(--bad, #b3202a); font-size: 13.5px; margin: 6px 0 0; }
+.field input.invalid, .field textarea.invalid { border-color: var(--bad, #b3202a); }
+#attest-box .field-error { margin: -8px 0 14px; }
+
+/* Empty upload boxes (photos and PDFs): identical size so the form lines up. */
+.upload-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 340px;
+  height: 110px;
+  margin-top: 10px;
+  box-sizing: border-box;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: 14px;
+  text-align: center;
+  cursor: pointer;
+}
+.upload-empty:hover { border-color: var(--accent); color: var(--accent); }

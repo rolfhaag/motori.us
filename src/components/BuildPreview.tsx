@@ -22,11 +22,14 @@ export default function BuildPreview({
   apiUrl,
   backHref,
   backLabel,
+  editHref,
   note,
 }: {
   apiUrl: string;
   backHref: string;
   backLabel: string;
+  /** Optional "Edit" link shown in the bar (Builders' own previews). */
+  editHref?: string;
   note: (p: Preview["build"]) => string;
 }) {
   const { ready, authenticated, login, getAccessToken } = usePrivy();
@@ -84,7 +87,12 @@ export default function BuildPreview({
       >
         <strong>Preview</strong>
         <span>{note(data.build)}</span>
-        <a href={backHref} style={{ color: "#fff", marginLeft: "auto" }}>
+        {editHref && (data.build.status === "draft" || data.build.status === "changes_requested") && (
+          <a href={editHref} style={{ color: "#fff", marginLeft: "auto", fontWeight: 600 }}>
+            Edit this build
+          </a>
+        )}
+        <a href={backHref} style={{ color: "#fff", marginLeft: editHref && (data.build.status === "draft" || data.build.status === "changes_requested") ? 0 : "auto" }}>
           &larr; {backLabel}
         </a>
       </div>

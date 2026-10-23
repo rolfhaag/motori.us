@@ -35,6 +35,11 @@ export interface EmailParts {
   signOff?: boolean;
   /** Footer line under the sign-off; defaults to the standard footer. */
   footerNote?: string;
+  /**
+   * For update/newsletter emails: why they got it, a working unsubscribe link
+   * and a postal address (all required for commercial email).
+   */
+  marketing?: { reason: string; unsubscribeUrl: string; postalAddress: string };
 }
 
 export type EmailBlock =
@@ -115,7 +120,11 @@ ${buttonRow}
 ${blocks.map(renderBlock).join("\n")}
 ${signOff}
 </td></tr>
-<tr><td style="padding:18px 28px 24px;border-top:1px solid ${LINE};font-size:13px;line-height:1.5;color:${MUTED};">${esc(footerNote)}<br>Reply to this email to reach us.</td></tr>
+<tr><td style="padding:18px 28px 24px;border-top:1px solid ${LINE};font-size:13px;line-height:1.5;color:${MUTED};">${esc(footerNote)}<br>Reply to this email to reach us.${
+    parts.marketing
+      ? `<br><br>${esc(parts.marketing.reason)} <a href="${esc(parts.marketing.unsubscribeUrl)}" style="color:${MUTED};">Unsubscribe</a><br>${esc(parts.marketing.postalAddress)}`
+      : ""
+  }</td></tr>
 </table>
 </td></tr></table>
 </body></html>`;
@@ -132,6 +141,9 @@ ${signOff}
   }
   if (parts.signOff) textLines.push("The motori.us team", "");
   textLines.push("--", footerNote, "Reply to this email to reach us.");
+  if (parts.marketing) {
+    textLines.push("", `${parts.marketing.reason} Unsubscribe: ${parts.marketing.unsubscribeUrl}`, parts.marketing.postalAddress);
+  }
 
   return { html, text: textLines.join("\n").replace(/\n{3,}/g, "\n\n") };
 }

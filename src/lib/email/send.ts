@@ -23,6 +23,8 @@ export interface SendArgs {
   html: string;
   text: string;
   dedupeKey?: string;
+  /** Extra message headers, e.g. List-Unsubscribe for update emails. */
+  headers?: Record<string, string>;
 }
 
 export interface SendResult {
@@ -33,7 +35,7 @@ export interface SendResult {
 }
 
 export async function sendEmail(args: SendArgs): Promise<SendResult> {
-  const { to, template, subject, html, text, dedupeKey } = args;
+  const { to, template, subject, html, text, dedupeKey, headers } = args;
   let logId: string | null = null;
   try {
     const supabase = getSupabaseAdmin();
@@ -92,6 +94,7 @@ export async function sendEmail(args: SendArgs): Promise<SendResult> {
         subject,
         html,
         text,
+        ...(headers ? { headers } : {}),
       }),
     });
     const payload = (await res.json().catch(() => ({}))) as { id?: string; message?: string };

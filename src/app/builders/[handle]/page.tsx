@@ -7,6 +7,7 @@ import { getBuilderListing, displayName } from "@/lib/builderListings";
 import { builderBuildsHtml } from "@/lib/builderMarkup";
 import { esc } from "@/lib/email/layout";
 import { SITE_URL } from "@/lib/siteUrl";
+import { FollowPortal } from "@/components/FollowBox";
 
 // Builders and builds come from the database, so render per request.
 export const dynamic = "force-dynamic";
@@ -86,6 +87,12 @@ export default async function BuilderPage({ params }: { params: Promise<{ handle
       ${builderBuildsHtml(builder)}
     </div>
   </section>
+  <section class="follow-section">
+    <div class="wrap">
+      <div id="follow-slot"></div>
+      <p class="follow-sub" style="margin-top:14px;max-width:620px;">Prefer a feed reader? <a href="/builders/${esc(handle)}/feed.xml" style="color:var(--accent);">RSS feed for ${esc(builder.name)}</a>.</p>
+    </div>
+  </section>
   ${isFirst ? FOLLOW_SECTION : ""}
 </main>
 <footer>
@@ -100,6 +107,13 @@ export default async function BuilderPage({ params }: { params: Promise<{ handle
       <Script src={versionedAsset("qrcode.min.js")} strategy="afterInteractive" />
       <Script src={versionedAsset("qr.js")} strategy="afterInteractive" />
       <Script src={versionedAsset("site.js")} strategy="afterInteractive" />
+      <FollowPortal
+        targetId="follow-slot"
+        scope={`builder:${handle}`}
+        heading={`Follow ${builder.name}`}
+        sub={`Get an email when ${builder.name} publishes a new build.`}
+        source={`/builders/${handle}`}
+      />
       {isFirst && (
         <>
           <Script src="https://www.instagram.com/embed.js" strategy="lazyOnload" />

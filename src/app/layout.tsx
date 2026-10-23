@@ -6,6 +6,8 @@ import AuthButton from "@/components/AuthButton";
 import OwnerShareKit from "@/components/OwnerShareKit";
 import NominateButton from "@/components/NominateButton";
 import VinToggle from "@/components/VinToggle";
+import TermsGate from "@/components/TermsGate";
+import LegalBar from "@/components/LegalBar";
 import { versionedAsset } from "@/lib/assetVersion";
 import "./globals.css";
 
@@ -26,6 +28,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
+        <link rel="alternate" type="application/rss+xml" title="motori.us: new builds" href="/feed.xml" />
         <link rel="icon" href="/images/favicon.ico" sizes="any" />
         <link rel="icon" type="image/png" sizes="192x192" href="/images/favicon-192.png" />
         <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
@@ -36,7 +39,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <OwnerShareKit />
           <NominateButton />
           <VinToggle />
+          <TermsGate />
           {children}
+          <LegalBar />
         </AppProviders>
         {/* No-ops until Analytics is switched on for this project in the
             Vercel dashboard -- safe to ship ahead of flipping that on. */}

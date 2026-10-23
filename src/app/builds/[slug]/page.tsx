@@ -142,6 +142,7 @@ export default async function DynamicBuildPage({ params }: { params: Promise<{ s
         draft={(build.draft_content as DraftContent | null) ?? null}
         photos={photos}
         handle={handle}
+        allowFollow={build.visibility !== "private"}
       />
       <Script src={versionedAsset("qrcode.min.js")} strategy="afterInteractive" />
       <Script src={versionedAsset("qr.js")} strategy="afterInteractive" />

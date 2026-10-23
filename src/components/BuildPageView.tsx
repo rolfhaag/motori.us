@@ -1,6 +1,7 @@
 import type { DraftContent } from "@/lib/buildDraft";
 import { SITE_URL } from "@/lib/siteUrl";
 import GalleryLightbox from "@/components/GalleryLightbox";
+import FollowBox from "@/components/FollowBox";
 
 export interface ViewPhoto {
   url: string;
@@ -46,11 +47,14 @@ export default function BuildPageView({
   draft,
   photos,
   handle,
+  allowFollow = false,
 }: {
   build: ViewBuild;
   draft: DraftContent | null;
   photos: ViewPhoto[];
   handle: string | null;
+  /** Show the "follow this build" box (public pages only, not previews). */
+  allowFollow?: boolean;
 }) {
   const [hero, ...rest] = photos;
   const chips = draft?.hero.specChips.length
@@ -304,6 +308,26 @@ export default function BuildPageView({
             </div>
           </section>
         )}
+
+        {allowFollow && (
+          <section className="follow-section">
+            <div className="wrap">
+              <FollowBox
+                scope={`build:${build.slug}`}
+                heading="Follow this build"
+                sub="Get an email when there's news about this build."
+                source={`/builds/${build.slug}`}
+              />
+            </div>
+          </section>
+        )}
+
+        <div className="wrap">
+          <p className="build-disclosure">
+            Everything on this page was provided by the Builder and has not been independently verified by motori.us.
+            See the <a href="/terms">Terms of Use</a>.
+          </p>
+        </div>
 
         {handle && (
           <div className="wrap backlink">

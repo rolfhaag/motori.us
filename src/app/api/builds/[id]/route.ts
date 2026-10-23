@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyBuildSubmitted } from "@/lib/email/notify";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  ensureLegalDocs,
+  missingAcceptances,
+  recordAcceptances,
+  termsRequiredBody,
+} from "@/lib/legal/server";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireBuilder } from "@/lib/requireBuilder";
 import {
@@ -30,8 +36,9 @@ const EDITABLE_STATUSES = ["draft", "changes_requested"];
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let builderId: string;
+  let privyUserId: string;
   try {
-    ({ builderId } = await requireBuilder(req));
+    ({ builderId, privyUserId } = await requireBuilder(req));
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
@@ -121,6 +128,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   if (action === "submit") {
+    // Each submission carries the Builder's confirmation that the content is
+    // accurate and theirs to publish, recorded against the current Builder Terms.
+    if (String(form.get("attest") ?? "") !== "1") {
+      return NextResponse.json(
+        { error: "Please confirm the information is accurate and yours to publish before submitting." },
+        { status: 400 }
+      );
+    }
+    const unaccepted = await missingAcceptances(privyUserId, ["terms", "privacy", "builder_terms"]);
+    if (unaccepted.length > 0) return NextResponse.json(termsRequiredBody(unaccepted), { status: 409 });
     const missing = [
       !year && "Year",
       !make && "Make",
@@ -152,6 +169,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         { status: 409 }
       );
     }
+  }
+
+  if (action === "submit") {
+    const builderTermsDoc = (await ensureLegalDocs()).builder_terms;
+    const attested = await recordAcceptances(
+      req,
+      privyUserId,
+      [{ type: "builder_terms", version: builderTermsDoc.version }],
+      "build_submit",
+      id
+    );
+    if (!attested.ok) return NextResponse.json({ error: attested.error }, { status: 500 });
   }
 
   const finalPhotos: BuildPhoto[] = [...keptPhotos, ...newPhotoPaths.map((path) => ({ path }))];

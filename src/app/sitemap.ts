@@ -11,6 +11,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/about/` },
     { url: `${SITE_URL}/builders/mahlzeit-motorsport/` },
     { url: `${SITE_URL}/builds/71e9S38B36/` },
+    { url: `${SITE_URL}/follow` },
+    { url: `${SITE_URL}/terms` },
+    { url: `${SITE_URL}/builder-terms` },
+    { url: `${SITE_URL}/privacy` },
   ];
 
   try {

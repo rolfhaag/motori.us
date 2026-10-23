@@ -4,6 +4,7 @@ import { versionedAsset } from "@/lib/assetVersion";
 import { loadLegacyPage } from "@/lib/loadLegacyPage";
 import { getHomeListings } from "@/lib/builderListings";
 import { homeBuilderBlocksHtml } from "@/lib/builderMarkup";
+import { FollowPortal } from "@/components/FollowBox";
 
 // Builders and builds come from the database, so render per request.
 export const dynamic = "force-dynamic";
@@ -47,6 +48,13 @@ export default async function HomePage() {
         {LEGACY_HASH_REDIRECT}
       </Script>
       <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+      <FollowPortal
+        targetId="follow-slot"
+        scope="site"
+        heading="Follow new builds"
+        sub="One email when a new documented build goes live. Confirm once, unsubscribe any time."
+        source="/"
+      />
       <Script src={versionedAsset("site.js")} strategy="afterInteractive" />
     </>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePrivy } from "@privy-io/react-auth";
-import { useCallback, useEffect, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import DropZone from "@/components/DropZone";
 import Script from "next/script";
 import { SITE_URL } from "@/lib/siteUrl";
@@ -88,6 +88,8 @@ export default function BuilderPage() {
   const [editing, setEditing] = useState(false);
   const [viewOnly, setViewOnly] = useState(false);
   const [saving, setSaving] = useState<"save" | "submit" | null>(null);
+  // Per-submission confirmation, recorded with the Builder Terms version.
+  const [attest, setAttest] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -103,6 +105,10 @@ export default function BuilderPage() {
   const [basis, setBasis] = useState("");
   const [feedback, setFeedback] = useState("");
   const [draftBusy, setDraftBusy] = useState(false);
+  // Red "required" messages under fields, keyed by field id.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Where to scroll once the form is on screen (set when opening a build).
+  const scrollTarget = useRef<string | null>(null);
 
   const authedFetch = useCallback(
     async (url: string, init?: RequestInit) => {
@@ -145,26 +151,33 @@ export default function BuilderPage() {
       } catch {
         setError("Couldn't verify your account.");
       }
-      await loadBuilds();
+      const initialRows = await loadBuilds();
       // Arriving via the "Add a Build" nav link or the roster's "+" card
       // (both link here with ?new=1) jumps straight into a blank form
       // instead of landing on the list first. Read directly from the URL
       // rather than useSearchParams, which would force this page out of
       // static rendering for a one-time, client-only check.
-      if (new URLSearchParams(window.location.search).get("new") === "1") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("new") === "1") {
         startNew();
+      } else if (params.get("edit")) {
+        const target = initialRows.find((r) => r.id === params.get("edit"));
+        if (target) openBuild(target);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, getAccessToken, loadBuilds]);
 
   function startNew() {
+    setFieldErrors({});
+    scrollTarget.current = null;
     setForm(blankForm());
     setDraft({ status: "none", error: null, runs: 0, content: null, stale: false });
     setBasis("");
     setFeedback("");
     setViewOnly(false);
     setEditing(true);
+    setAttest(false);
     setError(null);
     setLastSaved(false);
   }
@@ -206,10 +219,21 @@ export default function BuilderPage() {
 
   function openBuild(b: BuildRow) {
     setNotice(null);
+    setFieldErrors({});
+    // Editing a build that already has a page draft: go straight to the box
+    // where changes are requested, the most likely reason to open it.
+    const canRevise =
+      STATUS_META[b.status].action === "edit" &&
+      b.status === "draft" &&
+      Boolean(b.draft_content) &&
+      b.draft_runs < MAX_DRAFT_RUNS &&
+      b.draft_status !== "running";
+    scrollTarget.current = canRevise ? "draft-feedback" : b.draft_status === "running" ? "draft-section" : null;
     applyRow(b);
     setFeedback("");
     setViewOnly(STATUS_META[b.status].action === "view");
     setEditing(true);
+    setAttest(false);
     setError(null);
     setLastSaved(false);
   }
@@ -227,6 +251,52 @@ export default function BuilderPage() {
   const draftStale =
     hasDraft &&
     (draft.stale || (basis !== "" && currentBasis !== basis) || form.newPhotos.length > 0 || form.newDocuments.length > 0);
+
+  function clearFieldError(id: string) {
+    setFieldErrors((e) => {
+      if (!e[id]) return e;
+      const next = { ...e };
+      delete next[id];
+      return next;
+    });
+  }
+
+  function scrollToField(id: string) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    if ("focus" in el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) {
+      (el as HTMLElement).focus({ preventScroll: true });
+    }
+  }
+
+  /**
+   * Checks the required fields in page order. On the first one that's missing
+   * it shows a red message under that field and scrolls to it. Returns true
+   * when everything needed is filled in.
+   */
+  function validateRequired(forSubmit: boolean): boolean {
+    const yearNum = Number(form.year);
+    const checks: { id: string; message: string; bad: boolean }[] = [
+      { id: "year", message: "Year is required (four digits, like 1971).", bad: !(form.year.length === 4 && yearNum >= 1885 && yearNum <= 2100) },
+      { id: "make", message: "Make is required.", bad: !form.make.trim() },
+      { id: "model", message: "Model is required.", bad: !form.model.trim() },
+      { id: "trim", message: "Trim is required.", bad: !form.trim.trim() },
+      { id: "vin", message: "VIN is required before you submit.", bad: forSubmit && !form.vin.trim() },
+      { id: "theme", message: "Theme is required. Two sentences is plenty.", bad: !form.theme.trim() },
+      { id: "field-photos", message: "Add at least one photo.", bad: totalPhotos < 1 },
+    ];
+    const missing = checks.filter((c) => c.bad);
+    if (missing.length === 0) {
+      setFieldErrors({});
+      return true;
+    }
+    setFieldErrors(Object.fromEntries(missing.map((c) => [c.id, c.message])));
+    setError(null);
+    // Let the red messages render, then jump to the first one.
+    requestAnimationFrame(() => scrollToField(missing[0].id));
+    return false;
+  }
 
   function makeHero(i: number) {
     setForm((f) => {
@@ -319,6 +389,7 @@ export default function BuilderPage() {
 
   async function startDraft() {
     setError(null);
+    if (!validateRequired(false)) return;
     setDraftBusy(true);
     try {
       const id = await saveInPlace();
@@ -333,7 +404,11 @@ export default function BuilderPage() {
         setError(data.error ?? "Couldn't start the draft.");
         return;
       }
+      clearFieldError("draft-section");
       setDraft((d) => ({ ...d, status: "running", error: null }));
+      // Keep the status in view: the save above re-read the build, so stay
+      // on the draft section instead of wherever the page ended up.
+      requestAnimationFrame(() => scrollToField("draft-section"));
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -361,6 +436,9 @@ export default function BuilderPage() {
           if (wasFirstDraft && row?.draft_status === "done" && row.draft_content) {
             setEditing(false);
             setNotice("Your page draft is ready. Preview it, then Edit to make changes or submit it for review.");
+            window.scrollTo({ top: 0 });
+          } else {
+            requestAnimationFrame(() => scrollToField("draft-section"));
           }
         }
       } catch {
@@ -370,6 +448,16 @@ export default function BuilderPage() {
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drafting, form.id]);
+
+  // Runs once the edit form is on screen after opening a build.
+  useEffect(() => {
+    if (!editing || !scrollTarget.current) return;
+    const id = scrollTarget.current;
+    scrollTarget.current = null;
+    const t = setTimeout(() => scrollToField(id), 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, form.id]);
 
   const totalPhotos = form.existingPhotos.length + form.newPhotos.length;
   const totalDocs = form.existingDocuments.length + form.newDocuments.length;
@@ -390,6 +478,7 @@ export default function BuilderPage() {
       return;
     }
     setError(skipped > 0 ? `Skipped ${skipped} file${skipped > 1 ? "s" : ""} that aren't photos.` : null);
+    clearFieldError("field-photos");
     setForm((f) => ({ ...f, newPhotos: [...f.newPhotos, ...files] }));
   }
 
@@ -433,6 +522,30 @@ export default function BuilderPage() {
     };
   }, [editing, viewOnly]);
 
+  // Submit: walk the requirements top to bottom and stop at the first one
+  // that isn't met, with a red message under it.
+  function trySubmit() {
+    if (!validateRequired(true)) return;
+    if (!hasDraft) {
+      setFieldErrors({ "draft-section": "Generate your page draft before you submit." });
+      requestAnimationFrame(() => scrollToField("draft-section"));
+      return;
+    }
+    if (!attest) {
+      setFieldErrors({ "attest-box": "Please confirm this before you submit." });
+      requestAnimationFrame(() => scrollToField("attest-box"));
+      return;
+    }
+    if (
+      draftStale &&
+      !window.confirm(
+        "Your page draft doesn't reflect your latest changes to the theme, photos or documents. Submit anyway?"
+      )
+    )
+      return;
+    submitForm("submit");
+  }
+
   async function submitForm(action: "save" | "submit") {
     setError(null);
     setLastSaved(false);
@@ -440,6 +553,7 @@ export default function BuilderPage() {
     try {
       const body = new FormData();
       body.set("action", action);
+      if (action === "submit") body.set("attest", attest ? "1" : "0");
       body.set("year", form.year);
     body.set("make", form.make);
       body.set("model", form.model);
@@ -537,7 +651,7 @@ export default function BuilderPage() {
                 <span className="label">Builder profile required</span>
                 <span>Your account doesn&rsquo;t have an approved Builder profile yet.</span>
               </div>
-            ) : loading ? (
+            ) : loading && !editing ? (
               <p className="lede">Loading…</p>
             ) : editing ? (
               <div className="formcard">
@@ -582,68 +696,86 @@ export default function BuilderPage() {
                   <label htmlFor="year">Year</label>
                   <input
                     id="year"
+                    className={fieldErrors.year ? "invalid" : undefined}
+                    aria-invalid={Boolean(fieldErrors.year)}
                     type="text"
                     inputMode="numeric"
                     maxLength={4}
                     value={form.year}
                     disabled={locked}
-                    onChange={(e) => setForm((f) => ({ ...f, year: e.target.value.replace(/\D/g, "") }))}
+                    onChange={(e) => { clearFieldError("year"); setForm((f) => ({ ...f, year: e.target.value.replace(/\D/g, "") })); }}
                     placeholder="Year"
                   />
+                  {fieldErrors.year && <p className="field-error">{fieldErrors.year}</p>}
                 </div>
                 <div className="field">
                   <label htmlFor="make">Make</label>
                   <input
                     id="make"
+                    className={fieldErrors.make ? "invalid" : undefined}
+                    aria-invalid={Boolean(fieldErrors.make)}
                     type="text"
                     value={form.make}
                     disabled={locked}
-                    onChange={(e) => setForm((f) => ({ ...f, make: e.target.value }))}
+                    onChange={(e) => { clearFieldError("make"); setForm((f) => ({ ...f, make: e.target.value })); }}
                     placeholder="Make"
                   />
+                  {fieldErrors.make && <p className="field-error">{fieldErrors.make}</p>}
                 </div>
                 <div className="field">
                   <label htmlFor="model">Model</label>
                   <input
                     id="model"
+                    className={fieldErrors.model ? "invalid" : undefined}
+                    aria-invalid={Boolean(fieldErrors.model)}
                     type="text"
                     value={form.model}
                     disabled={locked}
-                    onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
+                    onChange={(e) => { clearFieldError("model"); setForm((f) => ({ ...f, model: e.target.value })); }}
                     placeholder="Model"
                   />
+                  {fieldErrors.model && <p className="field-error">{fieldErrors.model}</p>}
                 </div>
                 <div className="field">
                   <label htmlFor="trim">Trim</label>
                   <input
                     id="trim"
+                    className={fieldErrors.trim ? "invalid" : undefined}
+                    aria-invalid={Boolean(fieldErrors.trim)}
                     type="text"
                     value={form.trim}
                     disabled={locked}
-                    onChange={(e) => setForm((f) => ({ ...f, trim: e.target.value }))}
+                    onChange={(e) => { clearFieldError("trim"); setForm((f) => ({ ...f, trim: e.target.value })); }}
                     placeholder="Trim"
                   />
+                  {fieldErrors.trim && <p className="field-error">{fieldErrors.trim}</p>}
                 </div>
                 <div className="field">
                   <label htmlFor="vin">VIN</label>
                   <input
                     id="vin"
+                    className={fieldErrors.vin ? "invalid" : undefined}
+                    aria-invalid={Boolean(fieldErrors.vin)}
                     type="text"
                     value={form.vin}
                     disabled={locked}
-                    onChange={(e) => setForm((f) => ({ ...f, vin: e.target.value }))}
+                    onChange={(e) => { clearFieldError("vin"); setForm((f) => ({ ...f, vin: e.target.value })); }}
                     placeholder="Chassis or VIN number"
                   />
+                  {fieldErrors.vin && <p className="field-error">{fieldErrors.vin}</p>}
                 </div>
                 <div className="field">
                   <label htmlFor="theme">Theme</label>
                   <textarea
                     id="theme"
+                    className={fieldErrors.theme ? "invalid" : undefined}
+                    aria-invalid={Boolean(fieldErrors.theme)}
                     value={form.theme}
                     disabled={locked}
-                    onChange={(e) => setForm((f) => ({ ...f, theme: e.target.value }))}
+                    onChange={(e) => { clearFieldError("theme"); setForm((f) => ({ ...f, theme: e.target.value })); }}
                     placeholder="Two sentences max -- a creative brief for the AI that drafts this car's page."
                   />
+                  {fieldErrors.theme && <p className="field-error">{fieldErrors.theme}</p>}
                   {!viewOnly && (
                     <p className="hint">
                       Two sentences max. This informs the AI-drafted page -- it isn&rsquo;t displayed verbatim.
@@ -661,10 +793,11 @@ export default function BuilderPage() {
                   />
                 </div>
 
-                <div className="field">
+                <div className="field" id="field-photos">
                   <label>
                     Photos ({totalPhotos}/{MAX_PHOTOS})
                   </label>
+                  {fieldErrors["field-photos"] && <p className="field-error">{fieldErrors["field-photos"]}</p>}
                   {!viewOnly && form.existingPhotoUrls.length > 1 && (
                     <p className="hint" style={{ marginTop: 0 }}>
                       The first photo is your page&rsquo;s hero and link-preview image. Use &ldquo;Make hero&rdquo; to
@@ -672,7 +805,13 @@ export default function BuilderPage() {
                     </p>
                   )}
                   <DropZone onFiles={addPhotos} disabled={viewOnly || locked} label="Drop photos to add">
-                  <div className="photo-grid" style={{ maxWidth: "none" }}>
+                  {!viewOnly && totalPhotos === 0 && (
+                    <label className="upload-empty">
+                      + Add photos
+                      <input type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: "none" }} />
+                    </label>
+                  )}
+                  <div className="photo-grid" style={{ maxWidth: "none", display: totalPhotos === 0 ? "none" : undefined }}>
                     {form.existingPhotoUrls.map((url, i) => (
                       <div className="photo-thumb" key={form.existingPhotos[i]}>
                         <img src={url} alt="" />
@@ -716,7 +855,7 @@ export default function BuilderPage() {
                           </button>
                         </div>
                       ))}
-                    {!viewOnly && totalPhotos < MAX_PHOTOS && (
+                    {!viewOnly && totalPhotos > 0 && totalPhotos < MAX_PHOTOS && (
                       <label className="photo-add">
                         + Add
                         <input
@@ -738,7 +877,13 @@ export default function BuilderPage() {
                     Documents ({totalDocs}/{MAX_DOCS})
                   </label>
                   <DropZone onFiles={addDocs} disabled={viewOnly || locked} label="Drop PDFs to add">
-                  <div className="doc-chip-list">
+                  {!viewOnly && totalDocs === 0 && (
+                    <label className="upload-empty">
+                      + Add PDF
+                      <input type="file" accept="application/pdf" multiple onChange={handleDocSelect} style={{ display: "none" }} />
+                    </label>
+                  )}
+                  <div className="doc-chip-list" style={{ display: totalDocs === 0 ? "none" : undefined }}>
                     {form.existingDocuments.map((doc, i) => (
                       <div className="doc-chip" key={doc.path}>
                         <span className="doc-chip-name">{doc.filename}</span>
@@ -776,7 +921,7 @@ export default function BuilderPage() {
                         </div>
                       ))}
                   </div>
-                  {!viewOnly && totalDocs < MAX_DOCS && (
+                  {!viewOnly && totalDocs > 0 && totalDocs < MAX_DOCS && (
                     <label className="doc-add">
                       + Add PDF
                       <input type="file" accept="application/pdf" multiple onChange={handleDocSelect} style={{ display: "none" }} />
@@ -787,8 +932,9 @@ export default function BuilderPage() {
                 </div>
 
                 {!viewOnly && (
-                  <div className="field">
+                  <div className="field" id="draft-section">
                     <label>Page draft</label>
+                    {fieldErrors["draft-section"] && <p className="field-error">{fieldErrors["draft-section"]}</p>}
                     {draft.status === "failed" && draft.error && (
                       <div className="status-banner warn">
                         <span className="label">Needs attention</span>
@@ -832,6 +978,7 @@ export default function BuilderPage() {
                     {hasDraft && runsLeft > 0 && !drafting && (
                       <>
                         <textarea
+                          id="draft-feedback"
                           value={feedback}
                           maxLength={600}
                           onChange={(e) => setFeedback(e.target.value)}
@@ -859,6 +1006,30 @@ export default function BuilderPage() {
                   </div>
                 )}
 
+                {!viewOnly && hasDraft && (
+                  <div id="attest-box">
+                  <label className="consent-check">
+                    <input
+                      type="checkbox"
+                      checked={attest}
+                      onChange={(e) => {
+                        setAttest(e.target.checked);
+                        if (e.target.checked) clearFieldError("attest-box");
+                      }}
+                    />
+                    <span>
+                      I confirm the information, photos and documents in this build are accurate and that I have the
+                      right to publish them. I&rsquo;ve reviewed the page draft and it is my statement. See the{" "}
+                      <a href="/builder-terms" target="_blank" rel="noopener noreferrer">
+                        Builder Terms
+                      </a>
+                      .
+                    </span>
+                  </label>
+                  {fieldErrors["attest-box"] && <p className="field-error">{fieldErrors["attest-box"]}</p>}
+                  </div>
+                )}
+
                 {error && <p className="form-error">{error}</p>}
                 {lastSaved && !error && <p className="hint">Saved.</p>}
 
@@ -876,18 +1047,8 @@ export default function BuilderPage() {
                       <button
                         className="btn-primary"
                         type="button"
-                        disabled={saving !== null || drafting || !hasDraft}
-                        title={hasDraft ? undefined : "Generate your page draft first"}
-                        onClick={() => {
-                          if (
-                            draftStale &&
-                            !window.confirm(
-                              "Your page draft doesn't reflect your latest changes to the theme, photos or documents. Submit anyway?"
-                            )
-                          )
-                            return;
-                          submitForm("submit");
-                        }}
+                        disabled={saving !== null || drafting}
+                        onClick={trySubmit}
                       >
                         {saving === "submit" ? "Submitting…" : "Submit"}
                       </button>

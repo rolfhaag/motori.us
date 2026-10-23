@@ -2,6 +2,12 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { notifyApplicationSubmitted } from "@/lib/email/notify";
 import { isPlausibleToken } from "@/lib/nominations";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  missingAcceptances,
+  parseAcceptEntries,
+  recordAcceptances,
+  termsRequiredBody,
+} from "@/lib/legal/server";
 import { AuthError, verifyRequestUser } from "@/lib/verifyRequestUser";
 import {
   deleteApplicationPhotos,
@@ -126,6 +132,16 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "submit") {
+    // Applying means agreeing to the Builder Terms (and having accepted the
+    // Terms of Use and Privacy Policy). The checkbox sends the version shown.
+    const offered = parseAcceptEntries(form.get("acceptLegal")).filter((e) => e.type === "builder_terms");
+    if (offered.length > 0) {
+      const recorded = await recordAcceptances(req, privyUserId, offered, "application");
+      if (!recorded.ok) return NextResponse.json({ error: recorded.error }, { status: 409 });
+    }
+    const missing = await missingAcceptances(privyUserId, ["terms", "privacy", "builder_terms"]);
+    if (missing.length > 0) return NextResponse.json(termsRequiredBody(missing), { status: 409 });
+
     if (!description) {
       return NextResponse.json({ error: "A short builder description is required." }, { status: 400 });
     }
