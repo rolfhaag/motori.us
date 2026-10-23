@@ -1,5 +1,6 @@
 "use client";
 
+import { shrinkImage } from "@/lib/clientImage";
 import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import DropZone from "@/components/DropZone";
@@ -466,7 +467,7 @@ export default function BuilderPage() {
 
   // Shared by the file picker and drag-and-drop. Windows sometimes reports an
   // empty MIME type, so fall back to the file extension.
-  function addPhotos(picked: File[]) {
+  async function addPhotos(picked: File[]) {
     const files = picked.filter((f) => f.type.startsWith("image/") || IMAGE_EXT.test(f.name));
     const skipped = picked.length - files.length;
     if (files.length === 0) {
@@ -479,7 +480,8 @@ export default function BuilderPage() {
     }
     setError(skipped > 0 ? `Skipped ${skipped} file${skipped > 1 ? "s" : ""} that aren't photos.` : null);
     clearFieldError("field-photos");
-    setForm((f) => ({ ...f, newPhotos: [...f.newPhotos, ...files] }));
+    const shrunk = await Promise.all(files.map((f) => shrinkImage(f)));
+    setForm((f) => ({ ...f, newPhotos: [...f.newPhotos, ...shrunk] }));
   }
 
   function addDocs(picked: File[]) {

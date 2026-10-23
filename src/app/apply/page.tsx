@@ -1,5 +1,6 @@
 "use client";
 
+import { shrinkImage, readJson } from "@/lib/clientImage";
 import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 
@@ -103,14 +104,15 @@ export default function ApplyPage() {
 
   const totalPhotos = existingPhotos.length + newPhotos.length;
 
-  function handleFileSelect(e: ChangeEvent<HTMLInputElement>) {
+  async function handleFileSelect(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
     if (totalPhotos + files.length > MAX_PHOTOS) {
       setError(`No more than ${MAX_PHOTOS} photos allowed.`);
       return;
     }
-    setNewPhotos((prev) => [...prev, ...files]);
-    e.target.value = "";
+    const shrunk = await Promise.all(files.map((f) => shrinkImage(f)));
+    setNewPhotos((prev) => [...prev, ...shrunk]);
   }
 
   function removeExistingPhoto(path: string) {
@@ -146,7 +148,7 @@ export default function ApplyPage() {
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
         return;
