@@ -121,6 +121,7 @@ export default function BuildPageView({
                 ))}
               </div>
             )}
+            <div className="builder-actions share-row">
             <button className="share-link" type="button" data-share-url={shareUrl} data-share-name={build.title}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <circle cx="18" cy="5" r="3" />
@@ -130,6 +131,13 @@ export default function BuildPageView({
               </svg>
               <span className="share-link-label">Share</span>
             </button>
+            {allowFollow && (
+              <a className="share-link follow-link" href="#follow">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16v12H4z" /><path d="M4 7l8 6 8-6" /></svg>
+                <span className="share-link-label">Follow</span>
+              </a>
+            )}
+            </div>
           </div>
           {hero && (
             <div className="hero-photo">
@@ -310,7 +318,7 @@ export default function BuildPageView({
         )}
 
         {allowFollow && (
-          <section className="follow-section">
+          <section className="follow-section" id="follow">
             <div className="wrap">
               <FollowBox
                 scope={`build:${build.slug}`}

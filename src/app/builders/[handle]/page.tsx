@@ -73,10 +73,16 @@ export default async function BuilderPage({ params }: { params: Promise<{ handle
       <p class="eyebrow">Builder profile</p>
       <h1 class="title mid">${esc(builder.name)}</h1>
       ${blurb ? `<p class="blurb">${esc(blurb)}</p>` : ""}
+      <div class="builder-actions share-row">
       <button class="share-link" type="button" data-share-url="${SITE_URL}/builders/${esc(handle)}/" data-share-name="${esc(builder.name)}">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-3.8M8.6 13.5l6.8 3.8"/></svg>
         <span class="share-link-label">Share</span>
       </button>
+      <a class="share-link follow-link" href="#follow">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg>
+        <span class="share-link-label">Follow</span>
+      </a>
+      </div>
     </div>
   </section>
   <section id="builder-builds" class="section-compact">
@@ -87,7 +93,7 @@ export default async function BuilderPage({ params }: { params: Promise<{ handle
       ${builderBuildsHtml(builder)}
     </div>
   </section>
-  <section class="follow-section">
+  <section class="follow-section" id="follow">
     <div class="wrap">
       <div id="follow-slot"></div>
       <p class="follow-sub" style="margin-top:14px;max-width:620px;">Prefer a feed reader? <a href="/builders/${esc(handle)}/feed.xml" style="color:var(--accent);">RSS feed for ${esc(builder.name)}</a>.</p>

@@ -62,15 +62,18 @@ export default function NominateButton() {
         for (let i = 0; i < 20 && !cancelled; i++) {
           const share = document.querySelector<HTMLElement>(".share-link:not(.nominate-btn)");
           if (share && share.parentElement) {
-            // Put Nominate on the same row as Share.
-            const row = document.createElement("div");
-            row.className = "builder-actions";
-            share.before(row);
-            row.appendChild(share);
+            // Put Nominate on the same row as Share (and Follow).
+            const existing = share.parentElement.classList.contains("builder-actions") ? share.parentElement : null;
+            const row = existing ?? document.createElement("div");
+            if (!existing) {
+              row.className = "builder-actions";
+              share.before(row);
+              row.appendChild(share);
+            }
             created = document.createElement("div");
             created.className = "nominate-slot";
             row.appendChild(created);
-            wrapper = row;
+            wrapper = existing ? null : row;
             setSlot(created);
             return;
           }

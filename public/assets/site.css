@@ -1320,3 +1320,11 @@ footer .fmono { font-family: var(--mono); }
   cursor: pointer;
 }
 .upload-empty:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Follow button beside Share / Nominate */
+a.share-link { text-decoration: none; }
+.follow-section { scroll-margin-top: 72px; }
+html { scroll-behavior: smooth; }
+.share-row { margin-top: 18px; }
+.share-row .share-link { margin-top: 0; }
+.builderhead .share-row { margin-top: 2px; }

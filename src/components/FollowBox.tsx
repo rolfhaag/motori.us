@@ -24,6 +24,21 @@ export default function FollowBox({
   const [done, setDone] = useState<"sent" | "already" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // The "Follow" button near Share links to #follow: after the page scrolls
+  // there, put the cursor in the email box.
+  useEffect(() => {
+    const focusEmail = () => {
+      setTimeout(() => {
+        document.querySelector<HTMLInputElement>("#follow input[name=email]")?.focus({ preventScroll: true });
+      }, 450);
+    };
+    const onClick = (e: MouseEvent) => {
+      if ((e.target as HTMLElement | null)?.closest?.('a[href="#follow"]')) focusEmail();
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
