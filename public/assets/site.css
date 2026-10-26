@@ -1375,3 +1375,5 @@ html { scroll-behavior: smooth; }
 .nom-steps span { font-size: 12px; padding: 3px 10px; border-radius: 100px; border: 1px solid var(--line); color: var(--ink-2); }
 .nom-steps span.on { background: color-mix(in srgb, var(--accent) 18%, var(--card)); border-color: var(--accent); color: var(--ink); font-weight: 600; }
 .nom-message { margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg, #fff); font-size: 14.5px; line-height: 1.5; word-break: break-word; }
+
+.show-more { background: none; border: none; padding: 0; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }

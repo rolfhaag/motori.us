@@ -1,5 +1,7 @@
 "use client";
 
+import AdminSpotters from "@/components/AdminSpotters";
+import ExpandableText from "@/components/ExpandableText";
 import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
@@ -53,7 +55,7 @@ interface Dashboard {
   builders: BuilderRow[];
 }
 
-type Tab = "applications" | "builds" | "builders" | "users";
+type Tab = "applications" | "builds" | "builders" | "spotters" | "users";
 
 const ACTIVE_APPLICATION_STATUSES = ["submitted", "denied_resubmit"];
 
@@ -95,7 +97,7 @@ export default function AdminPage() {
   // Links in the team@ notification emails open the right tab (?tab=applications).
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t === "applications" || t === "builds" || t === "builders" || t === "users") setTab(t);
+    if (t === "applications" || t === "builds" || t === "builders" || t === "spotters" || t === "users") setTab(t);
   }, []);
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const [reviewName, setReviewName] = useState("");
@@ -306,7 +308,7 @@ export default function AdminPage() {
             <h1 className="title mid">Dashboard</h1>
             <p>
               <a href="/admin/emails/">Preview notification emails</a> · <a href="/admin/newsletter/">Newsletter</a> ·{" "}
-              <a href="/admin/spotters/">Spotters</a> · <a href="/admin/legal/">Terms and privacy</a>
+              <a href="/admin/legal/">Terms and privacy</a>
             </p>
           </div>
         </section>
@@ -349,6 +351,13 @@ export default function AdminPage() {
                     onClick={() => setTab("builders")}
                   >
                     Builders
+                  </button>
+                  <button
+                    className={`gtab ${tab === "spotters" ? "active" : ""}`}
+                    type="button"
+                    onClick={() => setTab("spotters")}
+                  >
+                    Spotters
                   </button>
                   <button
                     className={`gtab ${tab === "users" ? "active" : ""}`}
@@ -787,7 +796,9 @@ export default function AdminPage() {
                               )}
                             </div>
                           </td>
-                          <td>{b.description}</td>
+                          <td>
+                            <ExpandableText text={b.description} />
+                          </td>
                           <td>
                             <span className={`badge ${b.hidden ? "denied" : "published"}`}>
                               {b.hidden ? "hidden" : "visible"}
@@ -813,6 +824,8 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                 )}
+
+                {tab === "spotters" && <AdminSpotters authedFetch={authedFetch} />}
 
                 {tab === "users" && (
                   <table className="admin-table">
