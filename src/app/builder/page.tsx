@@ -87,6 +87,7 @@ export default function BuilderPage() {
   const { ready, authenticated, login, getAccessToken } = usePrivy();
   const [role, setRole] = useState<string | null>(null);
   const [hasBuilderProfile, setHasBuilderProfile] = useState<boolean | null>(null);
+  const [ownHandle, setOwnHandle] = useState<string | null>(null);
   const [broughtBy, setBroughtBy] = useState<{ name: string; handle: string; ask: boolean } | null>(null);
   const [builds, setBuilds] = useState<BuildRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -156,6 +157,7 @@ export default function BuilderPage() {
         const data = await res.json();
         setRole(data.role ?? null);
         setBroughtBy(data.broughtBy ?? null);
+        setOwnHandle(data.builder?.handle ?? null);
       } catch {
         setError("Couldn't verify your account.");
       }
@@ -640,6 +642,11 @@ export default function BuilderPage() {
           <div className="wrap">
             <p className="eyebrow">Builder</p>
             <h1 className="title mid">Your Builds</h1>
+            {ownHandle && (
+              <p className="thesis">
+                <a href={`/builders/${ownHandle}/`}>View your public Builder page</a>
+              </p>
+            )}
           </div>
         </section>
 

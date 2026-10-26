@@ -25,6 +25,25 @@ function thumbHtml(b: ListedBuild): string {
 }
 
 function blockHtml(builder: ListedBuilder): string {
+  if (builder.builds.length === 0) {
+    return `<div class="builderblock">
+    <div class="builderblock-head">
+      <a class="bname" href="/builders/${esc(builder.handle)}/"><h3 class="h3">${esc(builder.name)}</h3></a>
+      <a class="viewprofile" href="/builders/${esc(builder.handle)}/">View builder &#8594;</a>
+    </div>
+    ${builder.tagline ? `<p class="builderblock-tag">${esc(builder.tagline)}</p>` : ""}
+    <div class="thumbgrid single">
+      <a class="buildthumb comingsoon" href="/builders/${esc(builder.handle)}/">
+        <div class="thumb"><span class="ph">coming soon</span></div>
+        <div class="info">
+          <span class="no">Build 01</span>
+          <h4>Coming soon</h4>
+          <p>${esc(builder.name)}&rsquo;s first documented build is on its way.</p>
+        </div>
+      </a>
+    </div>
+  </div>`;
+  }
   const many = builder.builds.length > 1;
   const row = many
     ? `<div class="carousel" data-carousel>

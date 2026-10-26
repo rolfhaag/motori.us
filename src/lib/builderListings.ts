@@ -22,6 +22,8 @@ export interface ListedBuilder {
   name: string;
   tagline: string;
   builds: ListedBuild[];
+  /** Raw socials text from the application, shown as links on the Builder page. */
+  socials?: string | null;
   /** The Spotter who brought this Builder to motori.us, if any. */
   broughtBy?: { handle: string; name: string } | null;
 }
@@ -79,7 +81,7 @@ function toListedBuild(b: BuildRow, no: number): ListedBuild {
 async function loadBuilders(handle?: string): Promise<ListedBuilder[]> {
   const supabase = getSupabaseAdmin();
 
-  let builderQuery = supabase.from("builders").select("user_id, handle, description, display_name, brought_by_spotter_id").eq("hidden", false);
+  let builderQuery = supabase.from("builders").select("user_id, handle, description, socials, display_name, brought_by_spotter_id").eq("hidden", false).order("created_at", { ascending: true });
   if (handle) builderQuery = builderQuery.eq("handle", handle);
   const { data: builders } = await builderQuery;
   if (!builders || builders.length === 0) return [];
@@ -115,6 +117,7 @@ async function loadBuilders(handle?: string): Promise<ListedBuilder[]> {
     return {
       handle: b.handle,
       name: (b.display_name as string | null) || displayName(b.handle),
+      socials: (b.socials as string | null) ?? null,
       broughtBy: b.brought_by_spotter_id && spotterById.get(b.brought_by_spotter_id)
         ? { handle: spotterById.get(b.brought_by_spotter_id)!.handle, name: spotterById.get(b.brought_by_spotter_id)!.display_name }
         : null,
@@ -124,10 +127,14 @@ async function loadBuilders(handle?: string): Promise<ListedBuilder[]> {
   });
 }
 
-/** Home page: Builders that have at least one public build, oldest Builder first. */
+/**
+ * Home page: every visible Builder. Those with a public build come first
+ * (oldest first); Builders still waiting on their first build follow as
+ * "coming soon".
+ */
 export async function getHomeListings(): Promise<ListedBuilder[]> {
   const all = await loadBuilders();
-  return all.filter((b) => b.builds.length > 0);
+  return [...all.filter((b) => b.builds.length > 0), ...all.filter((b) => b.builds.length === 0)];
 }
 
 export async function getBuilderListing(handle: string): Promise<ListedBuilder | null> {

@@ -246,6 +246,17 @@ export default function AuthButton() {
           >
             Following
           </a>
+          {builderHandle && (
+            <a
+              href={`/builders/${builderHandle}/`}
+              className="account-menu-item"
+              style={menuItemStyle}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+            >
+              My Builder page
+            </a>
+          )}
           {(role === "builder" || role === "admin") && (
             <a
               href="/builder"
