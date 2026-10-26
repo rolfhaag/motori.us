@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyBuildDecided } from "@/lib/email/notify";
 import { notifyFollowersOfNewBuild } from "@/lib/email/followers";
+import { notifySpotterBuildLive } from "@/lib/email/spotterNotify";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireAdmin } from "@/lib/requireAdmin";
@@ -95,6 +96,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (action === "publish") {
       after(() => notifyBuildDecided(id, "live", { stamp }));
       after(() => notifyFollowersOfNewBuild(id));
+      after(() => notifySpotterBuildLive(id));
     }
     else if (action === "deny_resubmit") after(() => notifyBuildDecided(id, "needs_changes", { note: notes, stamp }));
     else if (action === "deny_final") after(() => notifyBuildDecided(id, "denied", { note: notes, stamp }));
@@ -156,6 +158,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // First time this build goes public: send "approved and live" (once per build).
       after(() => notifyBuildDecided(id, "live", { stamp: new Date().toISOString() }));
       after(() => notifyFollowersOfNewBuild(id));
+      after(() => notifySpotterBuildLive(id));
       return NextResponse.json({ ok: true, visibility: "public", slug: build.slug });
     }
     const newPassword = generateAccessPassword();

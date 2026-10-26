@@ -7,6 +7,7 @@ interface Application {
   id: string;
   user_id: string;
   handle: string;
+  display_name?: string | null;
   description: string;
   socials: string | null;
   photos: string[];
@@ -40,6 +41,7 @@ interface UserRow {
 interface BuilderRow {
   user_id: string;
   handle: string;
+  display_name?: string | null;
   description: string;
   hidden: boolean;
 }
@@ -96,6 +98,8 @@ export default function AdminPage() {
     if (t === "applications" || t === "builds" || t === "builders" || t === "users") setTab(t);
   }, []);
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
+  const [reviewName, setReviewName] = useState("");
+  const [renaming, setRenaming] = useState<{ userId: string; value: string } | null>(null);
   const [selectedBuild, setSelectedBuild] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -151,7 +155,7 @@ export default function AdminPage() {
       const res = await authedFetch(`/api/admin/applications/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, notes }),
+        body: JSON.stringify({ action, notes, displayName: action === "approve" ? reviewName : undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -182,6 +186,29 @@ export default function AdminPage() {
         setError(data.error ?? "Something went wrong.");
         return;
       }
+      await loadDashboard();
+    } catch {
+      setError("Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function renameBuilder(userId: string, displayName: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await authedFetch(`/api/admin/builders/${userId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong.");
+        return;
+      }
+      setRenaming(null);
       await loadDashboard();
     } catch {
       setError("Something went wrong.");
@@ -279,7 +306,7 @@ export default function AdminPage() {
             <h1 className="title mid">Dashboard</h1>
             <p>
               <a href="/admin/emails/">Preview notification emails</a> · <a href="/admin/newsletter/">Newsletter</a> ·{" "}
-              <a href="/admin/legal/">Terms and privacy</a>
+              <a href="/admin/spotters/">Spotters</a> · <a href="/admin/legal/">Terms and privacy</a>
             </p>
           </div>
         </section>
@@ -352,10 +379,14 @@ export default function AdminPage() {
                             onClick={() => {
                               setSelectedApp(app.id === selectedApp ? null : app.id);
                               setNotes("");
+                              setReviewName(app.display_name ?? "");
                             }}
                           >
                             <td>
-                              {app.handle}
+                              {app.display_name ? `${app.display_name} ` : ""}
+                              <span style={app.display_name ? { color: "var(--ink-2)" } : undefined}>
+                                {app.display_name ? `(${app.handle})` : app.handle}
+                              </span>
                               {app.nominated_by_handle && (
                                 <span className="badge" title={`Nominated by ${app.nominated_by_handle}`} style={{ marginLeft: 8 }}>
                                   nominated
@@ -384,6 +415,25 @@ export default function AdminPage() {
                         return (
                           <div className="detail-panel">
                             <h4>{app.handle}</h4>
+                            {canDecide ? (
+                              <div className="field">
+                                <label htmlFor="reviewName">Builder name (shown on the site; edit if needed)</label>
+                                <input
+                                  id="reviewName"
+                                  type="text"
+                                  value={reviewName}
+                                  maxLength={40}
+                                  onChange={(e) => setReviewName(e.target.value)}
+                                />
+                              </div>
+                            ) : (
+                              app.display_name && (
+                                <div className="detail-row">
+                                  <span className="label">Builder name</span>
+                                  {app.display_name}
+                                </div>
+                              )
+                            )}
                             {app.nominated_by_handle && (
                               <div className="detail-row">
                                 <span className="label">Nominated by</span>
@@ -706,6 +756,36 @@ export default function AdminPage() {
                             <a className="cta-link" href={`/builders/${b.handle}/`}>
                               {b.handle}
                             </a>
+                            <div style={{ marginTop: 6 }}>
+                              {renaming?.userId === b.user_id ? (
+                                <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
+                                  <input
+                                    type="text"
+                                    value={renaming.value}
+                                    maxLength={40}
+                                    onChange={(e) => setRenaming({ userId: b.user_id, value: e.target.value })}
+                                    style={{ minWidth: 180 }}
+                                  />
+                                  <button className="btn-secondary" type="button" disabled={busy} onClick={() => renameBuilder(b.user_id, renaming.value)}>
+                                    Save
+                                  </button>
+                                  <button className="btn-secondary" type="button" onClick={() => setRenaming(null)}>
+                                    Cancel
+                                  </button>
+                                </span>
+                              ) : (
+                                <>
+                                  {b.display_name || "(name from handle)"}{" "}
+                                  <button
+                                    className="btn-secondary"
+                                    type="button"
+                                    onClick={() => setRenaming({ userId: b.user_id, value: b.display_name ?? "" })}
+                                  >
+                                    Rename
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td>{b.description}</td>
                           <td>

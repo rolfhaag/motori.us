@@ -19,6 +19,7 @@ export default function AuthButton() {
   const { ready, authenticated, user, login, logout, getAccessToken } = usePrivy();
   const [role, setRole] = useState<string | null>(null);
   const [builderHandle, setBuilderHandle] = useState<string | null>(null);
+  const [isSpotter, setIsSpotter] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -42,6 +43,7 @@ export default function AuthButton() {
     if (!authenticated) {
       setRole(null);
       setBuilderHandle(null);
+      setIsSpotter(false);
       return;
     }
     let cancelled = false;
@@ -57,6 +59,7 @@ export default function AuthButton() {
         if (!cancelled) {
           setRole(data.role ?? null);
           setBuilderHandle(data.builderHandle ?? null);
+          setIsSpotter(Boolean(data.isSpotter));
         }
       } catch {
         if (!cancelled) {
@@ -234,6 +237,15 @@ export default function AuthButton() {
               <div style={{ fontSize: 12, color: "#55503F", marginTop: 2 }}>{roleLabel}</div>
             )}
           </div>
+          <a
+            href="/account"
+            className="account-menu-item"
+            style={menuItemStyle}
+            role="menuitem"
+            onClick={() => setOpen(false)}
+          >
+            Following
+          </a>
           {(role === "builder" || role === "admin") && (
             <a
               href="/builder"
@@ -243,6 +255,17 @@ export default function AuthButton() {
               onClick={() => setOpen(false)}
             >
               Builder dashboard
+            </a>
+          )}
+          {isSpotter && (
+            <a
+              href="/spotter"
+              className="account-menu-item"
+              style={menuItemStyle}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+            >
+              Spotter dashboard
             </a>
           )}
           {role === "admin" && (

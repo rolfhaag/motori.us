@@ -436,12 +436,46 @@ export function termsUpdated(d: {
   };
 }
 
+/** Invite to become a Spotter (Admin can also send the same link by DM). */
+export function spotterInvite(d: { name?: string | null; url: string }): RenderedEmail {
+  return {
+    subject: "You’re invited to be a Spotter on motori.us",
+    ...renderEmail({
+      preheader: "Find cars worth documenting and nominate their owners.",
+      lead: `${d.name ? `${d.name}, you’re` : "You’re"} invited to be a Spotter on motori.us.`,
+      buttons: [{ label: "Set up your Spotter page", url: d.url }],
+      blocks: [
+        {
+          type: "p",
+          text: "Spotters find cars worth documenting and send their owners a personal link to apply. When an owner you nominated is accepted, you’re credited on their page.",
+        },
+        { type: "p", text: "Setup takes about a minute. The link is just for you and expires in 14 days." },
+      ],
+      signOff: true,
+    }),
+  };
+}
+
+/** A car or Builder a Spotter nominated moved forward. */
+export function spotterUpdate(d: { lead: string; body: string; url: string; buttonLabel: string }): RenderedEmail {
+  return {
+    subject: d.lead,
+    ...renderEmail({
+      preheader: d.body,
+      lead: d.lead,
+      buttons: [{ label: d.buttonLabel, url: d.url }],
+      blocks: [{ type: "p", text: d.body }],
+      signOff: true,
+    }),
+  };
+}
+
 // ---------------------------------------------------------------- registry
 
 export interface TemplateDef {
   id: string;
   label: string;
-  audience: "team" | "applicant" | "builder" | "subscriber";
+  audience: "team" | "applicant" | "builder" | "subscriber" | "spotter";
   render: (hero: string | null) => RenderedEmail;
 }
 
@@ -619,6 +653,24 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
       termsUpdated({
         items: [{ title: "Builder Terms", version: "2027-01-01", summary: "Adds terms for optional on-chain records.", url: `${SITE_URL}/builder-terms` }],
         actionUrl: `${SITE_URL}/builder`,
+      }),
+  },
+  {
+    id: "spotter-invite",
+    label: "16. Spotter invite",
+    audience: "spotter",
+    render: () => spotterInvite({ name: "Sam", url: `${SITE_URL}/spotter/join?t=sample` }),
+  },
+  {
+    id: "spotter-update",
+    label: "17. A car you spotted moved forward (to Spotters)",
+    audience: "spotter",
+    render: () =>
+      spotterUpdate({
+        lead: "A car you spotted is now live.",
+        body: "Sample Garage’s build is now live on motori.us, with your Spotter credit.",
+        url: `${SITE_URL}/spotter`,
+        buttonLabel: "See your Spotter page",
       }),
   },
 ];

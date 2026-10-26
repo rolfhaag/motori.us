@@ -1328,3 +1328,50 @@ html { scroll-behavior: smooth; }
 .share-row { margin-top: 18px; }
 .share-row .share-link { margin-top: 0; }
 .builderhead .share-row { margin-top: 2px; }
+
+/* Star Follow button */
+.follow-slot { display: contents; }
+.share-link.following svg { background: var(--accent); color: var(--accent-ink); }
+.follow-flash { align-self: center; font-size: 13px; color: var(--ink-2); }
+.follow-sheet { max-width: 440px; }
+.follow-sheet .follow-sub { margin: 0 0 14px; font-size: 14.5px; color: var(--ink-2); }
+.follow-sheet .btn-primary { width: 100%; }
+.follow-sheet form { display: flex; flex-wrap: wrap; gap: 10px; }
+.follow-sheet input[type="email"] {
+  flex: 1 1 200px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg, #fff); color: var(--ink); font: inherit; font-size: 15px;
+}
+.follow-sheet input[type="email"]:focus { outline: none; border-color: var(--accent); }
+.follow-sheet .follow-or { margin: 16px 0 10px; font-size: 13px; color: var(--ink-2); text-align: center; }
+.follow-sheet .follow-fine { margin: 12px 0 0; font-size: 12.5px; color: var(--ink-2); }
+.follow-sheet .follow-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.follow-msg.bad { color: #9b3a2e; }
+.dash-tabs { display: flex; gap: 8px; margin-bottom: 22px; }
+.dash-tabs button {
+  padding: 8px 18px; border-radius: 100px; border: 1px solid var(--line); background: var(--card);
+  color: var(--ink-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.dash-tabs button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.following-list .kicker { margin: 22px 0 8px; }
+
+/* Spotters */
+.spotted-by { margin: 14px 0 0; font-size: 14.5px; color: var(--ink-2); }
+.spotted-by a { color: var(--accent); font-weight: 600; }
+.spotter-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.spotter-list a { color: var(--ink); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--line); }
+.spotter-list a:hover { border-color: var(--accent); }
+.spotter-hero-actions { display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: center; }
+.spotter-nominate { padding: 16px 34px; font-size: 17px; }
+.spotter-counts { display: flex; flex-wrap: wrap; gap: 6px 22px; color: var(--ink-2); font-size: 14.5px; }
+.spotter-counts strong { color: var(--ink); font-size: 20px; margin-right: 4px; }
+.spotter-invite-made { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.spotter-invite-made input { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg, #fff); color: var(--ink); font: inherit; font-size: 14px; }
+.nom-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+.nom-list li { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.nom-main { min-width: 0; }
+.nom-title { margin: 0; font-weight: 700; }
+.nom-date { margin: 2px 0 8px; font-size: 13px; color: var(--ink-2); }
+.nom-steps { margin: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.nom-steps span { font-size: 12px; padding: 3px 10px; border-radius: 100px; border: 1px solid var(--line); color: var(--ink-2); }
+.nom-steps span.on { background: color-mix(in srgb, var(--accent) 18%, var(--card)); border-color: var(--accent); color: var(--ink); font-weight: 600; }
+.nom-message { margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg, #fff); font-size: 14.5px; line-height: 1.5; word-break: break-word; }

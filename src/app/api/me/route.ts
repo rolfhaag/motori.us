@@ -37,9 +37,24 @@ export async function GET(req: NextRequest) {
 
   const { data: builder } = await supabase
     .from("builders")
-    .select("handle, description, socials, hidden")
+    .select("handle, display_name, description, socials, hidden, brought_by_spotter_id, spotter_credit_answered")
     .eq("user_id", privyUserId)
     .maybeSingle();
+
+  // The Spotter who brought this Builder in (for the "credit your Spotter?" question),
+  // and whether this person is a Spotter themselves (for the account menu).
+  let broughtBy: { name: string; handle: string; ask: boolean } | null = null;
+  if (builder?.brought_by_spotter_id) {
+    const { data: sp } = await supabase
+      .from("spotters")
+      .select("handle, display_name, status")
+      .eq("id", builder.brought_by_spotter_id)
+      .maybeSingle();
+    if (sp && sp.status === "active") {
+      broughtBy = { name: sp.display_name, handle: sp.handle, ask: !builder.spotter_credit_answered };
+    }
+  }
+  const { data: ownSpotter } = await supabase.from("spotters").select("status").eq("user_id", privyUserId).maybeSingle();
 
   let applicationWithUrls = null;
   if (application) {
@@ -53,5 +68,7 @@ export async function GET(req: NextRequest) {
     banned: dbUser?.banned ?? false,
     application: applicationWithUrls,
     builder: builder ?? null,
+    broughtBy,
+    isSpotter: ownSpotter?.status === "active",
   });
 }

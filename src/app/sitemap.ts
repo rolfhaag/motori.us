@@ -15,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/terms` },
     { url: `${SITE_URL}/builder-terms` },
     { url: `${SITE_URL}/privacy` },
+    { url: `${SITE_URL}/spotter-terms` },
   ];
 
   try {

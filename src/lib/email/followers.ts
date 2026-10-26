@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SITE_URL } from "@/lib/siteUrl";
-import { displayName } from "@/lib/builderListings";
+import { builderName } from "@/lib/names";
 import {
   postalAddress,
   recipientsForScopes,
@@ -79,6 +79,7 @@ export async function notifyFollowersOfNewBuild(buildId: string): Promise<void> 
     const { data: builder } = await supabase.from("builders").select("handle").eq("user_id", build.builder_id).maybeSingle();
     if (!builder) return;
     const handle = builder.handle as string;
+    const shownName = await builderName(handle);
 
     const recipients = await recipientsForScopes(["site", `builder:${handle}` as Scope]);
     if (recipients.length === 0) return;
@@ -95,13 +96,13 @@ export async function notifyFollowersOfNewBuild(buildId: string): Promise<void> 
       (_r, marketing) =>
         newBuildAnnouncement({
           buildTitle: build.title,
-          builderName: displayName(handle),
+          builderName: shownName,
           blurb: thesis,
           heroUrl,
           pageUrl,
           marketing,
         }),
-      `You’re getting this because you follow ${displayName(handle)} or new builds on motori.us.`
+      `You’re getting this because you follow ${shownName} or new builds on motori.us.`
     );
   } catch (err) {
     console.error("[followers] notifyFollowersOfNewBuild failed:", err);

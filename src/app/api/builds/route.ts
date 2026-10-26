@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireBuilder } from "@/lib/requireBuilder";
+import { applySpotterCredit } from "@/lib/spotters";
 import { isDraftStale } from "@/lib/draftInputs";
 import {
   BuildDocument,
@@ -148,6 +149,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? "Could not save the build." }, { status: 500 });
   }
 
+  await applySpotterCredit(builderId, build.id, form.get("spotterCredit"));
   const { access_password_hash: _h, draft_input_hash: _d, ...safeBuild } = build;
   return NextResponse.json({
     ok: true,

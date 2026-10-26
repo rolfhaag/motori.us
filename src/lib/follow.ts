@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
 import type { NextRequest } from "next/server";
-import { displayName } from "@/lib/builderListings";
+import { builderName, builderNames } from "@/lib/names";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SITE_URL } from "@/lib/siteUrl";
 import { requestMeta } from "@/lib/legal/server";
@@ -48,7 +48,7 @@ export async function scopeLabel(scope: Scope): Promise<string | null> {
     const handle = scope.slice(8);
     const { data } = await supabase.from("builders").select("handle, hidden").eq("handle", handle).maybeSingle();
     if (!data || data.hidden) return null;
-    return `new builds by ${displayName(handle)}`;
+    return `new builds by ${await builderName(handle)}`;
   }
   const slug = scope.slice(6);
   const { data } = await supabase
@@ -262,4 +262,128 @@ export function unsubscribeHeaders(token: string): Record<string, string> {
     "List-Unsubscribe": `<${u.oneClick}>, <mailto:team@motori.us?subject=unsubscribe>`,
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
   };
+}
+
+// ---------------------------------------------------------------------------
+// Signed-in follows: the person is logged in with a verified email, so
+// pressing Follow is the consent (no confirmation email). These are the same
+// email_subscriptions rows as email-only follows, matched by email address,
+// so an earlier email-only follow shows up once that person signs up.
+// ---------------------------------------------------------------------------
+
+export const ACCOUNT_CONSENT_TEXT =
+  "Followed while signed in to motori.us: email me news about this. I can unsubscribe any time.";
+
+/** The email we can trust for a signed-in user: Privy-verified, else the one stored at sign-in. */
+export async function accountEmail(privyUserId: string, verified: string | null): Promise<string | null> {
+  if (verified) return normalizeEmail(verified);
+  const { data } = await getSupabaseAdmin().from("users").select("email").eq("id", privyUserId).maybeSingle();
+  return normalizeEmail(data?.email);
+}
+
+export type FollowResult = { ok: true } | { ok: false; status: number; error: string };
+
+export async function followAsUser(req: NextRequest, email: string, scopeRaw: unknown): Promise<FollowResult> {
+  const scope = parseScope(scopeRaw);
+  if (!scope) return { ok: false, status: 400, error: "That isn't something you can follow." };
+  if (!(await scopeLabel(scope))) return { ok: false, status: 404, error: "That page isn't available to follow." };
+
+  const supabase = getSupabaseAdmin();
+  const meta = requestMeta(req);
+  const now = new Date().toISOString();
+  const { data: existing } = await supabase
+    .from("email_subscriptions")
+    .select("id, status")
+    .eq("email", email)
+    .eq("scope", scope)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.status === "confirmed") return { ok: true };
+    const { error } = await supabase
+      .from("email_subscriptions")
+      .update({
+        status: "confirmed",
+        confirmed_at: now,
+        unsubscribed_at: null,
+        consent_text: ACCOUNT_CONSENT_TEXT,
+        source: "account",
+        ip: meta.ip,
+        user_agent: meta.userAgent,
+      })
+      .eq("id", existing.id);
+    if (error) return { ok: false, status: 500, error: "Could not follow. Please try again." };
+    return { ok: true };
+  }
+  const { error } = await supabase.from("email_subscriptions").insert({
+    email,
+    scope,
+    token: newToken(),
+    status: "confirmed",
+    confirmed_at: now,
+    source: "account",
+    consent_text: ACCOUNT_CONSENT_TEXT,
+    ip: meta.ip,
+    user_agent: meta.userAgent,
+  });
+  if (error) return { ok: false, status: 500, error: "Could not follow. Please try again." };
+  return { ok: true };
+}
+
+export async function unfollowAsUser(email: string, scopeRaw: unknown): Promise<FollowResult> {
+  const scope = parseScope(scopeRaw);
+  if (!scope) return { ok: false, status: 400, error: "That isn't something you can follow." };
+  await getSupabaseAdmin()
+    .from("email_subscriptions")
+    .update({ status: "unsubscribed", unsubscribed_at: new Date().toISOString() })
+    .eq("email", email)
+    .eq("scope", scope)
+    .neq("status", "unsubscribed");
+  return { ok: true };
+}
+
+export interface FollowItem {
+  scope: Scope;
+  kind: "site" | "builder" | "build";
+  title: string;
+  subtitle: string | null;
+  url: string;
+}
+
+/** Everything this email address follows (confirmed), with display details. */
+export async function listFollows(email: string): Promise<FollowItem[]> {
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from("email_subscriptions")
+    .select("scope, confirmed_at")
+    .eq("email", email)
+    .eq("status", "confirmed")
+    .order("confirmed_at", { ascending: false });
+  const scopes = (data ?? []).map((r) => r.scope as Scope);
+
+  const slugs = scopes.filter((s) => s.startsWith("build:")).map((s) => s.slice(6));
+  const { data: builds } = slugs.length
+    ? await supabase.from("builds").select("slug, title, hidden, status, visibility, user_id").in("slug", slugs)
+    : { data: [] as { slug: string; title: string; hidden: boolean; status: string; visibility: string; user_id: string }[] };
+  const buildBySlug = new Map((builds ?? []).map((b) => [b.slug, b]));
+
+  const bNames = await builderNames(scopes.filter((s) => s.startsWith("builder:")).map((s) => s.slice(8)));
+  const items: FollowItem[] = [];
+  for (const scope of scopes) {
+    if (scope === "site") {
+      items.push({ scope, kind: "site", title: "New builds on motori.us", subtitle: null, url: "/" });
+    } else if (scope.startsWith("builder:")) {
+      const handle = scope.slice(8);
+      items.push({ scope, kind: "builder", title: bNames.get(handle) ?? handle, subtitle: "Builder", url: `/builders/${handle}/` });
+    } else {
+      const b = buildBySlug.get(scope.slice(6));
+      if (b && !b.hidden && b.status === "published") {
+        items.push({ scope, kind: "build", title: b.title, subtitle: "Build", url: `/builds/${b.slug}/` });
+      } else {
+        // Keep it listed so it can still be unfollowed, even if the page is gone.
+        items.push({ scope, kind: "build", title: "A build that's no longer available", subtitle: "Build", url: "" });
+      }
+    }
+  }
+  return items;
 }

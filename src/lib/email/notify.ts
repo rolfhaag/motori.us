@@ -62,7 +62,7 @@ export const notifyApplicationSubmitted = safely(
   async (applicationId: string, opts: { resubmitted: boolean; priorNote?: string | null; stamp: string }) => {
     const { data: app } = await getSupabaseAdmin()
       .from("applications")
-      .select("id, user_id, handle, photos, nominated_by")
+      .select("id, user_id, handle, photos, nominated_by, spotter_id")
       .eq("id", applicationId)
       .maybeSingle();
     if (!app) return;
@@ -75,6 +75,13 @@ export const notifyApplicationSubmitted = safely(
         .eq("user_id", app.nominated_by)
         .maybeSingle();
       nominatedBy = nominator?.handle ?? null;
+    } else if (app.spotter_id) {
+      const { data: sp } = await getSupabaseAdmin()
+        .from("spotters")
+        .select("display_name, handle")
+        .eq("id", app.spotter_id)
+        .maybeSingle();
+      nominatedBy = sp ? `Spotter ${sp.display_name} (@${sp.handle})` : null;
     }
 
     await send(

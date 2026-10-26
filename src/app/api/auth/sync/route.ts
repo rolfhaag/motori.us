@@ -85,9 +85,12 @@ export async function POST(req: NextRequest) {
     .eq("user_id", privyUserId)
     .maybeSingle();
 
+  const { data: spotter } = await supabase.from("spotters").select("status").eq("user_id", privyUserId).maybeSingle();
+
   return NextResponse.json({
     ok: true,
     role: existing?.role ?? role,
     builderHandle: builder?.handle ?? null,
+    isSpotter: spotter?.status === "active",
   });
 }

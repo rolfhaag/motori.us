@@ -1,7 +1,7 @@
 import type { DraftContent } from "@/lib/buildDraft";
 import { SITE_URL } from "@/lib/siteUrl";
 import GalleryLightbox from "@/components/GalleryLightbox";
-import FollowBox from "@/components/FollowBox";
+import FollowButton from "@/components/FollowButton";
 
 export interface ViewPhoto {
   url: string;
@@ -47,12 +47,18 @@ export default function BuildPageView({
   draft,
   photos,
   handle,
+  builderName,
+  spottedBy,
   allowFollow = false,
 }: {
   build: ViewBuild;
   draft: DraftContent | null;
   photos: ViewPhoto[];
   handle: string | null;
+  /** The Builder's display name (falls back to the handle). */
+  builderName?: string | null;
+  /** The Spotter credited for finding this car, if the Builder confirmed it. */
+  spottedBy?: { handle: string; name: string } | null;
   /** Show the "follow this build" box (public pages only, not previews). */
   allowFollow?: boolean;
 }) {
@@ -76,7 +82,7 @@ export default function BuildPageView({
             {handle && (
               <nav className="crumbs">
                 <span className="sep">/</span>
-                <a href={`/builders/${handle}/`}>{handle}</a>
+                <a href={`/builders/${handle}/`}>{builderName || handle}</a>
                 <span className="sep">/</span>
                 <span className="here">{build.title}</span>
               </nav>
@@ -103,7 +109,7 @@ export default function BuildPageView({
       <main>
         <section className="hero compact">
           <div className="wrap">
-            <p className="eyebrow">{draft?.hero.eyebrow || handle || "motori.us"}</p>
+            <p className="eyebrow">{draft?.hero.eyebrow || builderName || handle || "motori.us"}</p>
             <h1 className="title mid">{build.title}</h1>
             {thesis && <p className="thesis">{thesis}</p>}
             {build.vinMasked && (
@@ -121,6 +127,11 @@ export default function BuildPageView({
                 ))}
               </div>
             )}
+            {spottedBy && (
+              <p className="spotted-by">
+                Spotted by <a href={`/spotters/${spottedBy.handle}/`}>{spottedBy.name}</a>
+              </p>
+            )}
             <div className="builder-actions share-row">
             <button className="share-link" type="button" data-share-url={shareUrl} data-share-name={build.title}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -131,12 +142,7 @@ export default function BuildPageView({
               </svg>
               <span className="share-link-label">Share</span>
             </button>
-            {allowFollow && (
-              <a className="share-link follow-link" href="#follow">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16v12H4z" /><path d="M4 7l8 6 8-6" /></svg>
-                <span className="share-link-label">Follow</span>
-              </a>
-            )}
+            {allowFollow && <FollowButton scope={`build:${build.slug}`} name={build.title} />}
             </div>
           </div>
           {hero && (
@@ -317,18 +323,6 @@ export default function BuildPageView({
           </section>
         )}
 
-        {allowFollow && (
-          <section className="follow-section" id="follow">
-            <div className="wrap">
-              <FollowBox
-                scope={`build:${build.slug}`}
-                heading="Follow this build"
-                sub="Get an email when there's news about this build."
-                source={`/builds/${build.slug}`}
-              />
-            </div>
-          </section>
-        )}
 
         <div className="wrap">
           <p className="build-disclosure">
@@ -340,7 +334,7 @@ export default function BuildPageView({
         {handle && (
           <div className="wrap backlink">
             <a className="cta-link" href={`/builders/${handle}/`}>
-              &larr; Back to {handle}
+              &larr; Back to {builderName || handle}
             </a>
           </div>
         )}

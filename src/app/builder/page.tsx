@@ -4,6 +4,7 @@ import { shrinkImage } from "@/lib/clientImage";
 import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import DropZone from "@/components/DropZone";
+import FollowingList from "@/components/FollowingList";
 import Script from "next/script";
 import { SITE_URL } from "@/lib/siteUrl";
 
@@ -36,6 +37,7 @@ interface BuildRow {
   draft_runs: number;
   draft_stale?: boolean;
   visibility?: "public" | "private";
+  spotted_by_spotter_id?: string | null;
   draft_content: { hero?: { thesis?: string; specChips?: string[] }; baseline?: { glance?: unknown[]; detailed?: unknown[] }; roadmap?: unknown[]; updates?: unknown[] } | null;
 }
 
@@ -76,6 +78,8 @@ function blankForm() {
     adminNotes: null as string | null,
     slug: null as string | null,
     visibility: "public" as "public" | "private",
+    spotterCredit: true,
+    creditedAtLoad: false,
   };
 }
 
@@ -83,10 +87,12 @@ export default function BuilderPage() {
   const { ready, authenticated, login, getAccessToken } = usePrivy();
   const [role, setRole] = useState<string | null>(null);
   const [hasBuilderProfile, setHasBuilderProfile] = useState<boolean | null>(null);
+  const [broughtBy, setBroughtBy] = useState<{ name: string; handle: string; ask: boolean } | null>(null);
   const [builds, setBuilds] = useState<BuildRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(blankForm());
   const [editing, setEditing] = useState(false);
+  const [dashTab, setDashTab] = useState<"builds" | "following">("builds");
   const [viewOnly, setViewOnly] = useState(false);
   const [saving, setSaving] = useState<"save" | "submit" | null>(null);
   // Per-submission confirmation, recorded with the Builder Terms version.
@@ -149,6 +155,7 @@ export default function BuilderPage() {
         const res = await fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json();
         setRole(data.role ?? null);
+        setBroughtBy(data.broughtBy ?? null);
       } catch {
         setError("Couldn't verify your account.");
       }
@@ -215,6 +222,8 @@ export default function BuilderPage() {
       adminNotes: b.admin_notes,
       slug: b.slug,
       visibility: b.visibility ?? "public",
+      spotterCredit: true,
+      creditedAtLoad: Boolean(b.spotted_by_spotter_id),
     });
   }
 
@@ -556,6 +565,7 @@ export default function BuilderPage() {
       const body = new FormData();
       body.set("action", action);
       if (action === "submit") body.set("attest", attest ? "1" : "0");
+      if (broughtBy && (broughtBy.ask || form.creditedAtLoad)) body.set("spotterCredit", form.spotterCredit ? "1" : "0");
       body.set("year", form.year);
     body.set("make", form.make);
       body.set("model", form.model);
@@ -580,6 +590,7 @@ export default function BuilderPage() {
       }
       setLastSaved(true);
       setEditing(false);
+      if (broughtBy?.ask) setBroughtBy({ ...broughtBy, ask: false });
       await loadBuilds();
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : "Something went wrong. Please try again.");
@@ -766,6 +777,23 @@ export default function BuilderPage() {
                   />
                   {fieldErrors.vin && <p className="field-error">{fieldErrors.vin}</p>}
                 </div>
+                {broughtBy && (broughtBy.ask || form.creditedAtLoad) && (
+                  <div className="field">
+                    <label className="consent-check">
+                      <input
+                        type="checkbox"
+                        checked={form.spotterCredit}
+                        disabled={locked}
+                        onChange={(e) => setForm((f) => ({ ...f, spotterCredit: e.target.checked }))}
+                      />
+                      <span>
+                        Credit <strong>{broughtBy.name}</strong> for spotting this car. The page will say
+                        &ldquo;Spotted by {broughtBy.name}&rdquo;.
+                      </span>
+                    </label>
+                  </div>
+                )}
+
                 <div className="field">
                   <label htmlFor="theme">Theme</label>
                   <textarea
@@ -1069,6 +1097,18 @@ export default function BuilderPage() {
               </div>
             ) : (
               <>
+                <div className="dash-tabs" role="tablist">
+                  <button type="button" role="tab" aria-selected={dashTab === "builds"} className={dashTab === "builds" ? "active" : ""} onClick={() => setDashTab("builds")}>
+                    My builds
+                  </button>
+                  <button type="button" role="tab" aria-selected={dashTab === "following"} className={dashTab === "following" ? "active" : ""} onClick={() => setDashTab("following")}>
+                    Following
+                  </button>
+                </div>
+                {dashTab === "following" ? (
+                  <FollowingList />
+                ) : (
+                  <>
                 <div className="btn-row" style={{ marginTop: 0, marginBottom: 22 }}>
                   <button className="btn-primary" type="button" onClick={startNew}>
                     + New Build
@@ -1151,6 +1191,8 @@ export default function BuilderPage() {
                     )}
                   </tbody>
                 </table>
+                  </>
+                )}
               </>
             )}
           </div>

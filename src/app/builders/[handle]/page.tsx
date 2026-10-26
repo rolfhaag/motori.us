@@ -7,7 +7,7 @@ import { getBuilderListing, displayName } from "@/lib/builderListings";
 import { builderBuildsHtml } from "@/lib/builderMarkup";
 import { esc } from "@/lib/email/layout";
 import { SITE_URL } from "@/lib/siteUrl";
-import { FollowPortal } from "@/components/FollowBox";
+import { FollowButtonPortal } from "@/components/FollowButton";
 
 // Builders and builds come from the database, so render per request.
 export const dynamic = "force-dynamic";
@@ -73,15 +73,13 @@ export default async function BuilderPage({ params }: { params: Promise<{ handle
       <p class="eyebrow">Builder profile</p>
       <h1 class="title mid">${esc(builder.name)}</h1>
       ${blurb ? `<p class="blurb">${esc(blurb)}</p>` : ""}
+      ${builder.broughtBy ? `<p class="spotted-by">Brought to motori.us by <a href="/spotters/${esc(builder.broughtBy.handle)}/">${esc(builder.broughtBy.name)}</a></p>` : ""}
       <div class="builder-actions share-row">
       <button class="share-link" type="button" data-share-url="${SITE_URL}/builders/${esc(handle)}/" data-share-name="${esc(builder.name)}">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-3.8M8.6 13.5l6.8 3.8"/></svg>
         <span class="share-link-label">Share</span>
       </button>
-      <a class="share-link follow-link" href="#follow">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg>
-        <span class="share-link-label">Follow</span>
-      </a>
+      <span id="follow-btn-slot" class="follow-slot"></span>
       </div>
     </div>
   </section>
@@ -91,12 +89,6 @@ export default async function BuilderPage({ params }: { params: Promise<{ handle
       <h2 class="h">Builds</h2>
       <p class="lede">${esc(lede)}</p>
       ${builderBuildsHtml(builder)}
-    </div>
-  </section>
-  <section class="follow-section" id="follow">
-    <div class="wrap">
-      <div id="follow-slot"></div>
-      <p class="follow-sub" style="margin-top:14px;max-width:620px;">Prefer a feed reader? <a href="/builders/${esc(handle)}/feed.xml" style="color:var(--accent);">RSS feed for ${esc(builder.name)}</a>.</p>
     </div>
   </section>
   ${isFirst ? FOLLOW_SECTION : ""}
@@ -113,13 +105,7 @@ export default async function BuilderPage({ params }: { params: Promise<{ handle
       <Script src={versionedAsset("qrcode.min.js")} strategy="afterInteractive" />
       <Script src={versionedAsset("qr.js")} strategy="afterInteractive" />
       <Script src={versionedAsset("site.js")} strategy="afterInteractive" />
-      <FollowPortal
-        targetId="follow-slot"
-        scope={`builder:${handle}`}
-        heading={`Follow ${builder.name}`}
-        sub={`Get an email when ${builder.name} publishes a new build.`}
-        source={`/builders/${handle}`}
-      />
+      <FollowButtonPortal targetId="follow-btn-slot" scope={`builder:${handle}`} name={builder.name} />
       {isFirst && (
         <>
           <Script src="https://www.instagram.com/embed.js" strategy="lazyOnload" />

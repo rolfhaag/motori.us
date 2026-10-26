@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireBuilder } from "@/lib/requireBuilder";
-import { displayName } from "@/lib/builderListings";
+import { builderName } from "@/lib/names";
 import { NOMINATIONS_PER_DAY, isPlausibleToken, newNominationToken, nominationUrl } from "@/lib/nominations";
 
 export const dynamic = "force-dynamic";
@@ -33,10 +33,10 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase.from("nominations").insert({ token, builder_id: builderId });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, token, url: nominationUrl(token), name: displayName(handle) });
+  return NextResponse.json({ ok: true, token, url: nominationUrl(token), name: await builderName(handle) });
 }
 
-/** Public: who sent this link? Only the Builder's display name comes back. */
+/** Public: who sent this link? Only the sender's display name (and a Spotter's note about the car) comes back. */
 export async function GET(req: NextRequest) {
   const token = new URL(req.url).searchParams.get("token");
   if (!isPlausibleToken(token)) return NextResponse.json({ error: "Not found." }, { status: 404 });
@@ -44,10 +44,20 @@ export async function GET(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const { data: nomination } = await supabase
     .from("nominations")
-    .select("builder_id")
+    .select("builder_id, spotter_id, car_note")
     .eq("token", token)
     .maybeSingle();
   if (!nomination) return NextResponse.json({ error: "Not found." }, { status: 404 });
+
+  if (nomination.spotter_id) {
+    const { data: spotter } = await supabase
+      .from("spotters")
+      .select("display_name, status")
+      .eq("id", nomination.spotter_id)
+      .maybeSingle();
+    if (!spotter || spotter.status !== "active") return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ kind: "spotter", name: spotter.display_name, note: nomination.car_note ?? null });
+  }
 
   const { data: builder } = await supabase
     .from("builders")
@@ -56,5 +66,5 @@ export async function GET(req: NextRequest) {
     .maybeSingle();
   if (!builder) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  return NextResponse.json({ name: displayName(builder.handle) });
+  return NextResponse.json({ kind: "builder", name: await builderName(builder.handle), note: null });
 }

@@ -51,7 +51,7 @@ export default async function LegalDocumentView({ doc }: { doc: LegalViewDoc }) 
               <a href="/terms">Terms of Use</a>
               <a href="/builder-terms">Builder Terms</a>
               <a href="/privacy">Privacy Policy</a>
-              {!doc.isCurrent && <a href={`/${doc.type === "builder_terms" ? "builder-terms" : doc.type}`}>Current version</a>}
+              {!doc.isCurrent && <a href={`/${doc.type === "builder_terms" ? "builder-terms" : doc.type === "spotter_terms" ? "spotter-terms" : doc.type}`}>Current version</a>}
             </nav>
             {earlier.length > 0 && (
               <p className="legal-earlier">

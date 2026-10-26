@@ -9,6 +9,7 @@ type AppStatus = "draft" | "submitted" | "denied_resubmit" | "denied_final" | "a
 interface ApplicationData {
   id: string;
   handle: string;
+  display_name: string | null;
   description: string;
   socials: string | null;
   photos: string[];
@@ -32,6 +33,7 @@ export default function ApplyPage() {
   const [loadingMe, setLoadingMe] = useState(false);
 
   const [handle, setHandle] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
   const [socials, setSocials] = useState("");
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
@@ -44,6 +46,8 @@ export default function ApplyPage() {
   // kept in localStorage so it survives the login step.
   const [nominationToken, setNominationToken] = useState<string | null>(null);
   const [nominator, setNominator] = useState<string | null>(null);
+  const [nominatorKind, setNominatorKind] = useState<"builder" | "spotter">("builder");
+  const [nominatorNote, setNominatorNote] = useState<string | null>(null);
   // Builder Terms: shown as a required checkbox until the current version is accepted.
   const [builderTerms, setBuilderTerms] = useState<{ title: string; version: string; path: string; accepted: boolean } | null>(null);
   const [agreeBuilderTerms, setAgreeBuilderTerms] = useState(false);
@@ -67,7 +71,11 @@ export default function ApplyPage() {
     setNominationToken(token);
     fetch(`/api/nominations?token=${encodeURIComponent(token)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setNominator(d?.name ?? null))
+      .then((d) => {
+        setNominator(d?.name ?? null);
+        setNominatorKind(d?.kind === "spotter" ? "spotter" : "builder");
+        setNominatorNote(d?.note ?? null);
+      })
       .catch(() => {});
   }, []);
 
@@ -86,6 +94,7 @@ export default function ApplyPage() {
       }
       if (data.application) {
         setHandle(data.application.handle);
+        setDisplayName(data.application.display_name ?? "");
         setDescription(data.application.description);
         setSocials(data.application.socials ?? "");
         setExistingPhotos(data.application.photos);
@@ -134,6 +143,7 @@ export default function ApplyPage() {
       const form = new FormData();
       form.set("action", action);
       form.set("handle", handle);
+      form.set("displayName", displayName);
       form.set("description", description);
       form.set("socials", socials);
       form.set("existingPhotos", JSON.stringify(existingPhotos));
@@ -233,7 +243,11 @@ export default function ApplyPage() {
             {nominator && (
               <div className="status-banner">
                 <span className="label">Nominated</span>
-                <span>{nominator} nominated your car for motori.us. Tell us about it below.</span>
+                <span>
+                  {nominatorKind === "spotter"
+                    ? `${nominator} spotted ${nominatorNote ? `your ${nominatorNote}` : "your car"} and nominated it for motori.us. Tell us about it below.`
+                    : `${nominator} nominated your car for motori.us. Tell us about it below.`}
+                </span>
               </div>
             )}
             {!authenticated ? (
@@ -276,6 +290,12 @@ export default function ApplyPage() {
                   <span className="label">Under review</span>
                   <span>Your application has been submitted and is awaiting review.</span>
                 </div>
+                {me.application.display_name && (
+                  <p className="field">
+                    <label>Builder name</label>
+                    {me.application.display_name}
+                  </p>
+                )}
                 <p className="field">
                   <label>Desired handle</label>
                   {me.application.handle}
@@ -316,9 +336,33 @@ export default function ApplyPage() {
                     type="text"
                     value={handle}
                     onChange={(e) => setHandle(e.target.value)}
+                    onBlur={() => {
+                      if (!displayName.trim() && handle.trim()) {
+                        setDisplayName(
+                          handle
+                            .split("-")
+                            .filter(Boolean)
+                            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                            .join(" ")
+                        );
+                      }
+                    }}
                     placeholder="your-shop-name"
                   />
                   <p className="hint">Lowercase letters, numbers, and hyphens. Becomes your motori.us URL.</p>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="displayName">Builder name</label>
+                  <input
+                    id="displayName"
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Your Shop Name"
+                    maxLength={40}
+                  />
+                  <p className="hint">How your name appears on the site, exactly as you want it to read.</p>
                 </div>
 
                 <div className="field">

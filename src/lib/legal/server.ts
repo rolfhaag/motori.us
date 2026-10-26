@@ -37,9 +37,38 @@ export function ensureLegalDocs(): Promise<Record<LegalDocType, StoredLegalDoc>>
 }
 
 async function load(): Promise<Record<LegalDocType, StoredLegalDoc>> {
-  const supabase = getSupabaseAdmin();
   const out = {} as Record<LegalDocType, StoredLegalDoc>;
   for (const type of LEGAL_DOC_TYPES) {
+    const doc = LEGAL_DOCS[type];
+    const hash = sha256(doc.markdown);
+    if (type === "spotter_terms") {
+      // Newer document: if the database isn't ready for it yet (migration 0015
+      // not run), keep the rest of the legal system working.
+      try {
+        out[type] = await loadOne(type);
+      } catch (err) {
+        console.error("[legal] spotter_terms not stored yet:", err);
+        out[type] = {
+          type,
+          version: doc.version,
+          title: doc.title,
+          path: doc.path,
+          effectiveDate: doc.effectiveDate,
+          changeSummary: doc.changeSummary,
+          markdown: doc.markdown,
+          sha256: hash,
+        };
+      }
+      continue;
+    }
+    out[type] = await loadOne(type);
+  }
+  return out;
+}
+
+async function loadOne(type: LegalDocType): Promise<StoredLegalDoc> {
+  const supabase = getSupabaseAdmin();
+  {
     const doc = LEGAL_DOCS[type];
     const hash = sha256(doc.markdown);
     let { data: row } = await supabase
@@ -81,7 +110,7 @@ async function load(): Promise<Record<LegalDocType, StoredLegalDoc>> {
           `Serving the stored text. Bump the version in src/lib/legal/documents.ts to publish the change.`
       );
     }
-    out[type] = {
+    return {
       type,
       version: row.version,
       title: row.title,
@@ -92,7 +121,6 @@ async function load(): Promise<Record<LegalDocType, StoredLegalDoc>> {
       sha256: row.content_sha256,
     };
   }
-  return out;
 }
 
 /**
@@ -151,7 +179,7 @@ export async function recordAcceptances(
   req: NextRequest,
   userId: string,
   entries: AcceptEntry[],
-  context: "gate" | "application" | "build_submit",
+  context: "gate" | "application" | "build_submit" | "spotter_setup",
   buildId?: string | null
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const docs = await ensureLegalDocs();

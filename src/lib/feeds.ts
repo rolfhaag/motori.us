@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SITE_URL } from "@/lib/siteUrl";
-import { displayName } from "@/lib/builderListings";
+import { builderNames } from "@/lib/names";
 
 /** RSS 2.0 feeds: new public builds for the whole site, or for one Builder. */
 
@@ -44,10 +44,11 @@ async function loadItems(handle?: string): Promise<{ items: FeedItem[]; builderN
     .not("slug", "is", null);
 
   const handleById = new Map(visible.map((b) => [b.user_id, b.handle as string]));
+  const names = await builderNames(visible.map((b) => b.handle as string));
   const items: FeedItem[] = (builds ?? []).map((b) => {
     const photos = (b.photos ?? []) as unknown[];
     const thesis = (b.draft_content as { hero?: { thesis?: string } } | null)?.hero?.thesis || b.theme || "";
-    const by = displayName(handleById.get(b.builder_id) ?? "");
+    const by = names.get(handleById.get(b.builder_id) ?? "") ?? "";
     return {
       title: b.title as string,
       link: `${SITE_URL}/builds/${b.slug}`,
@@ -58,7 +59,7 @@ async function loadItems(handle?: string): Promise<{ items: FeedItem[]; builderN
     };
   });
   items.sort((a, b) => b.date.getTime() - a.date.getTime());
-  return { items: items.slice(0, 30), builderName: handle ? displayName(handle) : null };
+  return { items: items.slice(0, 30), builderName: handle ? names.get(handle) ?? null : null };
 }
 
 export async function renderFeed(handle?: string): Promise<string | null> {

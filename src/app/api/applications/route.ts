@@ -15,6 +15,7 @@ import {
   uploadApplicationPhoto,
 } from "@/lib/applicationPhotos";
 import { isHandleAvailable, isValidHandleFormat, normalizeHandle } from "@/lib/builderHandle";
+import { cleanDisplayName } from "@/lib/names";
 
 const ACTIVE_STATUSES = ["draft", "submitted", "denied_resubmit"];
 const MAX_PHOTOS = 3;
@@ -59,6 +60,11 @@ export async function POST(req: NextRequest) {
   }
 
   const handle = normalizeHandle(String(form.get("handle") ?? ""));
+  const rawDisplayName = String(form.get("displayName") ?? "").trim();
+  const displayNameClean = cleanDisplayName(rawDisplayName);
+  if (rawDisplayName && !displayNameClean) {
+    return NextResponse.json({ error: "Builder name must be 2 to 40 characters." }, { status: 400 });
+  }
   const description = String(form.get("description") ?? "").trim();
   const socials = String(form.get("socials") ?? "").trim() || null;
   const keepPhotos = JSON.parse(String(form.get("existingPhotos") ?? "[]")) as string[];
@@ -113,7 +119,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const handleFree = await isHandleAvailable(handle, existing?.id);
+  const handleFree = await isHandleAvailable(handle, existing?.id, privyUserId);
   if (!handleFree) {
     return NextResponse.json(
       { error: "That handle is already taken. Please choose another." },
@@ -142,6 +148,9 @@ export async function POST(req: NextRequest) {
     const missing = await missingAcceptances(privyUserId, ["terms", "privacy", "builder_terms"]);
     if (missing.length > 0) return NextResponse.json(termsRequiredBody(missing), { status: 409 });
 
+    if (!displayNameClean) {
+      return NextResponse.json({ error: "A Builder name is required (2 to 40 characters)." }, { status: 400 });
+    }
     if (!description) {
       return NextResponse.json({ error: "A short builder description is required." }, { status: 400 });
     }
@@ -183,6 +192,7 @@ export async function POST(req: NextRequest) {
   const payload = {
     user_id: privyUserId,
     handle,
+    display_name: displayNameClean,
     description,
     socials,
     photos: finalPhotos,
@@ -210,11 +220,16 @@ export async function POST(req: NextRequest) {
     try {
       const { data: nomination } = await supabase
         .from("nominations")
-        .select("id, builder_id")
+        .select("id, builder_id, spotter_id")
         .eq("token", nominationToken)
         .is("claimed_application_id", null)
         .maybeSingle();
-      if (nomination && nomination.builder_id !== privyUserId) {
+      let ownNomination = nomination?.builder_id === privyUserId;
+      if (nomination?.spotter_id) {
+        const { data: sp } = await supabase.from("spotters").select("user_id").eq("id", nomination.spotter_id).maybeSingle();
+        ownNomination = sp?.user_id === privyUserId;
+      }
+      if (nomination && !ownNomination) {
         const { data: claimed } = await supabase
           .from("nominations")
           .update({ claimed_application_id: savedId, claimed_at: new Date().toISOString() })
@@ -224,7 +239,11 @@ export async function POST(req: NextRequest) {
         if (claimed && claimed.length > 0) {
           await supabase
             .from("applications")
-            .update({ nominated_by: nomination.builder_id, nomination_id: nomination.id })
+            .update({
+              nominated_by: nomination.builder_id ?? null,
+              spotter_id: nomination.spotter_id ?? null,
+              nomination_id: nomination.id,
+            })
             .eq("id", savedId);
         }
       }

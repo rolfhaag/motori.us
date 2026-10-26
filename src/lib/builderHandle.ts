@@ -18,16 +18,26 @@ export function isValidHandleFormat(handle: string): boolean {
  */
 export async function isHandleAvailable(
   handle: string,
-  excludeApplicationId?: string
+  excludeApplicationId?: string,
+  ownerUserId?: string
 ): Promise<boolean> {
   const supabase = getSupabaseAdmin();
 
+  // Builder and Spotter handles share one namespace, but the same person may
+  // hold the same handle as both a Builder and a Spotter.
   const { data: builderMatch } = await supabase
     .from("builders")
     .select("user_id")
     .eq("handle", handle)
     .maybeSingle();
-  if (builderMatch) return false;
+  if (builderMatch && builderMatch.user_id !== ownerUserId) return false;
+
+  const { data: spotterMatch } = await supabase
+    .from("spotters")
+    .select("user_id")
+    .eq("handle", handle)
+    .maybeSingle();
+  if (spotterMatch && spotterMatch.user_id !== ownerUserId) return false;
 
   let query = supabase
     .from("applications")

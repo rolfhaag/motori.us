@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/builderListings";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
@@ -43,10 +44,23 @@ async function getBuild(slug: string): Promise<BuildRow | null> {
   return data as BuildRow | null;
 }
 
-async function getBuilderHandle(builderId: string): Promise<string | null> {
+async function getBuilderInfo(builderId: string): Promise<{ handle: string; name: string } | null> {
   const supabase = getSupabaseAdmin();
-  const { data } = await supabase.from("builders").select("handle").eq("user_id", builderId).maybeSingle();
-  return data?.handle ?? null;
+  const { data } = await supabase.from("builders").select("handle, display_name").eq("user_id", builderId).maybeSingle();
+  if (!data) return null;
+  return { handle: data.handle, name: (data.display_name as string | null) || displayName(data.handle) };
+}
+
+async function getSpottedBy(buildId: string): Promise<{ handle: string; name: string } | null> {
+  const supabase = getSupabaseAdmin();
+  const { data: b } = await supabase.from("builds").select("spotted_by_spotter_id").eq("id", buildId).maybeSingle();
+  if (!b?.spotted_by_spotter_id) return null;
+  const { data: sp } = await supabase
+    .from("spotters")
+    .select("handle, display_name, status")
+    .eq("id", b.spotted_by_spotter_id)
+    .maybeSingle();
+  return sp && sp.status === "active" ? { handle: sp.handle, name: sp.display_name } : null;
 }
 
 export async function generateMetadata({
@@ -105,7 +119,9 @@ export default async function DynamicBuildPage({ params }: { params: Promise<{ s
     }
   }
 
-  const handle = await getBuilderHandle(build.builder_id);
+  const builderInfo = await getBuilderInfo(build.builder_id);
+  const handle = builderInfo?.handle ?? null;
+  const spottedBy = build.visibility === "private" ? null : await getSpottedBy(build.id);
   const photoEntries = (build.photos ?? []) as BuildPhoto[];
   const photoUrls = await signBuildPhotoUrls(photoEntries);
   const photos = photoUrls.map((url, i) => ({
@@ -142,6 +158,8 @@ export default async function DynamicBuildPage({ params }: { params: Promise<{ s
         draft={(build.draft_content as DraftContent | null) ?? null}
         photos={photos}
         handle={handle}
+        builderName={builderInfo?.name ?? null}
+        spottedBy={spottedBy}
         allowFollow={build.visibility !== "private"}
       />
       <Script src={versionedAsset("qrcode.min.js")} strategy="afterInteractive" />

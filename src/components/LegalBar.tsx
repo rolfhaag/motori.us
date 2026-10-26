@@ -5,6 +5,7 @@ export default function LegalBar() {
       <div className="wrap">
         <a href="/terms">Terms</a>
         <a href="/builder-terms">Builder Terms</a>
+        <a href="/spotter-terms">Spotter Terms</a>
         <a href="/privacy">Privacy</a>
         <a href="/follow">Follow new builds</a>
         <a href="/feed.xml">RSS</a>

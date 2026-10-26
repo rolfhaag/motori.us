@@ -22,6 +22,8 @@ export interface ListedBuilder {
   name: string;
   tagline: string;
   builds: ListedBuild[];
+  /** The Spotter who brought this Builder to motori.us, if any. */
+  broughtBy?: { handle: string; name: string } | null;
 }
 
 // The original hand-written profile copy for the first Builder.
@@ -77,7 +79,7 @@ function toListedBuild(b: BuildRow, no: number): ListedBuild {
 async function loadBuilders(handle?: string): Promise<ListedBuilder[]> {
   const supabase = getSupabaseAdmin();
 
-  let builderQuery = supabase.from("builders").select("user_id, handle, description").eq("hidden", false);
+  let builderQuery = supabase.from("builders").select("user_id, handle, description, display_name, brought_by_spotter_id").eq("hidden", false);
   if (handle) builderQuery = builderQuery.eq("handle", handle);
   const { data: builders } = await builderQuery;
   if (!builders || builders.length === 0) return [];
@@ -101,12 +103,21 @@ async function loadBuilders(handle?: string): Promise<ListedBuilder[]> {
     .not("slug", "is", null)
     .order("created_at", { ascending: true });
 
+  const spotterIds = [...new Set(visible.map((b) => b.brought_by_spotter_id).filter(Boolean))] as string[];
+  const { data: spotters } = spotterIds.length
+    ? await supabase.from("spotters").select("id, handle, display_name").in("id", spotterIds).eq("status", "active")
+    : { data: [] as { id: string; handle: string; display_name: string }[] };
+  const spotterById = new Map((spotters ?? []).map((sp) => [sp.id, sp]));
+
   return visible.map((b) => {
     const mine = ((builds ?? []) as BuildRow[]).filter((x) => x.builder_id === b.user_id);
     const override = BUILDER_OVERRIDES[b.handle];
     return {
       handle: b.handle,
-      name: displayName(b.handle),
+      name: (b.display_name as string | null) || displayName(b.handle),
+      broughtBy: b.brought_by_spotter_id && spotterById.get(b.brought_by_spotter_id)
+        ? { handle: spotterById.get(b.brought_by_spotter_id)!.handle, name: spotterById.get(b.brought_by_spotter_id)!.display_name }
+        : null,
       tagline: override?.tagline ?? clip(b.description ?? "", 160),
       builds: mine.map((x, i) => toListedBuild(x, i + 1)),
     };

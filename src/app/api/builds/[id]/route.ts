@@ -9,6 +9,7 @@ import {
 } from "@/lib/legal/server";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireBuilder } from "@/lib/requireBuilder";
+import { applySpotterCredit } from "@/lib/spotters";
 import {
   BuildDocument,
   BuildPhoto,
@@ -210,6 +211,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await applySpotterCredit(builderId, id, form.get("spotterCredit"));
 
   // Emails: team@ gets "new/resubmitted build", the Builder gets "received".
   if (action === "submit") {

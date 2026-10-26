@@ -15,6 +15,12 @@ async function audienceFor(type: LegalDocType, version: string) {
   const supabase = getSupabaseAdmin();
   let q = supabase.from("users").select("id, email, role").eq("banned", false).not("email", "is", null);
   if (type === "builder_terms") q = q.in("role", ["builder", "admin"]);
+  if (type === "spotter_terms") {
+    const { data: sp } = await supabase.from("spotters").select("user_id").eq("status", "active");
+    const ids = (sp ?? []).map((r) => r.user_id as string);
+    if (ids.length === 0) return { total: 0, pending: [] };
+    q = q.in("id", ids);
+  }
   const { data: users } = await q;
   const { data: accepted } = await supabase
     .from("legal_acceptances")

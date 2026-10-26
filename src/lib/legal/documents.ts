@@ -11,7 +11,7 @@ import { OPERATOR } from "./config";
  * Never edit the text of a version that has already shipped without bumping it.
  */
 
-export type LegalDocType = "terms" | "builder_terms" | "privacy";
+export type LegalDocType = "terms" | "builder_terms" | "privacy" | "spotter_terms";
 
 export interface LegalDoc {
   type: LegalDocType;
@@ -252,6 +252,50 @@ If we change this policy in a way that matters, we'll update the date and email 
 ${O.name}, ${O.email}.
 `.trim();
 
+const SPOTTER_TERMS = `
+These Spotter Terms apply to you if you are a Spotter on motori.us. They add to the [Terms of Use](/terms) and the [Privacy Policy](/privacy). If they conflict, these Spotter Terms control for Spotters.
+
+## 1. What a Spotter is
+
+A Spotter finds cars worth documenting and invites their owners to apply to motori.us. Being a Spotter is by invitation, is not employment or a partnership, and gives you no authority to speak for ${O.name} or to make promises on its behalf. We may end or pause your Spotter access at any time.
+
+## 2. Nominations
+
+A nomination is an invitation to apply. It does not mean the owner or the car will be accepted. motori.us is curated and decides every application on its own. Don't promise a nominee that they will be accepted, published or featured.
+
+## 3. Be straightforward
+
+- Only nominate cars you have actually seen, and don't pretend to be the owner or the Builder.
+- Be honest about what motori.us is. Don't describe it as a dealer, appraiser, inspector or marketplace, and don't make claims about a car's value, condition or history on our behalf.
+- Respect people. Don't pressure owners, send repeated unwanted messages, or share anyone's personal details in a nomination.
+- If you are paid, given a product or otherwise rewarded for a post that mentions motori.us, disclose it as the law and the platform require.
+- Follow the rules of the platforms you use, including Instagram, TikTok and YouTube.
+
+## 4. Credit
+
+If an owner you nominated is accepted, you may be credited by name on their Builder page, and on a build page if the Builder confirms you spotted that car. Credit is at our discretion, goes to the first Spotter whose nomination the applicant used, can be corrected or removed by us, and carries no payment or other entitlement. You can't credit yourself.
+
+## 5. Your name and links
+
+Your public Spotter page shows the display name, handle and social link you give us, and the Builders and builds you are credited with. You give ${O.name} a non-exclusive, royalty-free license to show them on motori.us and in related emails and sharing. Posts or videos of yours that we link to or embed (only with your agreement) stay yours and remain on the platform they were posted to.
+
+## 6. No verification, no responsibility
+
+We don't verify the cars, owners or statements of Builders or Spotters. See the Terms of Use. You are responsible for what you say and post.
+
+## 7. Privacy
+
+When you nominate a car we store your note about it and the link. We don't store anything about the person you send it to until they apply. See the [Privacy Policy](/privacy).
+
+## 8. Changes and ending
+
+We may update these terms. We will ask you to accept the new version, and keep the old one on file. You can stop being a Spotter at any time by telling us at ${O.email}.
+
+## 9. Contact
+
+Questions: ${O.email}.
+`;
+
 export const LEGAL_DOCS: Record<LegalDocType, LegalDoc> = {
   terms: {
     type: "terms",
@@ -270,6 +314,15 @@ export const LEGAL_DOCS: Record<LegalDocType, LegalDoc> = {
     effectiveDate: "2026-10-19",
     changeSummary: "First published version of the Builder Terms.",
     markdown: BUILDER_TERMS,
+  },
+  spotter_terms: {
+    type: "spotter_terms",
+    version: "2026-10-25",
+    title: "Spotter Terms",
+    path: "/spotter-terms",
+    effectiveDate: "2026-10-25",
+    changeSummary: "First published version of the Spotter Terms.",
+    markdown: SPOTTER_TERMS,
   },
   privacy: {
     type: "privacy",

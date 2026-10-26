@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AuthError } from "@/lib/verifyRequestUser";
 import { requireAdmin } from "@/lib/requireAdmin";
 import { isHandleAvailable } from "@/lib/builderHandle";
+import { cleanDisplayName } from "@/lib/names";
+import { notifySpotterBuilderApproved } from "@/lib/email/spotterNotify";
 
 type DecideAction = "approve" | "deny_resubmit" | "deny_final";
 
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const now = new Date().toISOString();
 
   if (action === "approve") {
-    const handleFree = await isHandleAvailable(application.handle, application.id);
+    const handleFree = await isHandleAvailable(application.handle, application.id, application.user_id);
     if (!handleFree) {
       return NextResponse.json(
         {
@@ -70,8 +72,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { error: builderError } = await supabase.from("builders").insert({
       user_id: application.user_id,
       handle: application.handle,
+      display_name: (body.displayName ? cleanDisplayName(body.displayName) : null) ?? application.display_name ?? null,
       description: application.description,
       socials: application.socials,
+      brought_by_spotter_id: application.spotter_id ?? null,
     });
     if (builderError) {
       return NextResponse.json({ error: builderError.message }, { status: 500 });
@@ -94,6 +98,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     after(() => notifyApplicationDecided(id, "approved", { stamp: now }));
+    if (application.spotter_id) after(() => notifySpotterBuilderApproved(application.id));
     return NextResponse.json({ ok: true, status: "approved" });
   }
 
