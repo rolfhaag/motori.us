@@ -1382,3 +1382,6 @@ html { scroll-behavior: smooth; }
 .builder-socials a { color: var(--accent); font-weight: 600; }
 .buildthumb.comingsoon .thumb { border: 1px dashed var(--line); background: transparent; }
 .buildthumb.comingsoon h4 { color: var(--ink-2); }
+
+.embedrow.single { grid-template-columns: minmax(0, 560px); justify-content: center; }
+#builder-follow .builder-socials { margin-top: 22px; justify-content: center; }

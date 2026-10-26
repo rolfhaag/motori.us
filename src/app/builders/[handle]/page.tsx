@@ -6,7 +6,7 @@ import { loadLegacyPage } from "@/lib/loadLegacyPage";
 import { getBuilderListing, displayName } from "@/lib/builderListings";
 import { builderBuildsHtml } from "@/lib/builderMarkup";
 import { esc } from "@/lib/email/layout";
-import { parseSocials } from "@/lib/socials";
+import { followAlongHtml, parseSocials } from "@/lib/socials";
 import { SITE_URL } from "@/lib/siteUrl";
 import { FollowButtonPortal } from "@/components/FollowButton";
 
@@ -49,7 +49,7 @@ export default async function BuilderPage({ params }: { params: Promise<{ handle
   const isFirst = handle === FIRST_BUILDER;
   const blurb = blurbFor(handle, builder.tagline);
   const count = builder.builds.length;
-  const socialLinks = parseSocials(builder.socials);
+  const along = isFirst ? null : followAlongHtml(parseSocials(builder.socials));
   const lede =
     count === 0
       ? `${builder.name} hasn’t published a build yet.`
@@ -75,7 +75,6 @@ export default async function BuilderPage({ params }: { params: Promise<{ handle
       <p class="eyebrow">Builder profile</p>
       <h1 class="title mid">${esc(builder.name)}</h1>
       ${blurb ? `<p class="blurb">${esc(blurb)}</p>` : ""}
-      ${!isFirst && socialLinks.length > 0 ? `<p class="builder-socials">${socialLinks.map((l) => (l.url ? `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer nofollow ugc">${esc(l.label)}</a>` : `<span>${esc(l.label)}</span>`)).join("")}</p>` : ""}
       ${builder.broughtBy ? `<p class="spotted-by">Brought to motori.us by <a href="/spotters/${esc(builder.broughtBy.handle)}/">${esc(builder.broughtBy.name)}</a></p>` : ""}
       <div class="builder-actions share-row">
       <button class="share-link" type="button" data-share-url="${SITE_URL}/builders/${esc(handle)}/" data-share-name="${esc(builder.name)}">
@@ -94,7 +93,7 @@ export default async function BuilderPage({ params }: { params: Promise<{ handle
       ${builderBuildsHtml(builder)}
     </div>
   </section>
-  ${isFirst ? FOLLOW_SECTION : ""}
+  ${isFirst ? FOLLOW_SECTION : along?.html ?? ""}
 </main>
 <footer>
   <div class="wrap">
@@ -109,12 +108,8 @@ export default async function BuilderPage({ params }: { params: Promise<{ handle
       <Script src={versionedAsset("qr.js")} strategy="afterInteractive" />
       <Script src={versionedAsset("site.js")} strategy="afterInteractive" />
       <FollowButtonPortal targetId="follow-btn-slot" scope={`builder:${handle}`} name={builder.name} />
-      {isFirst && (
-        <>
-          <Script src="https://www.instagram.com/embed.js" strategy="lazyOnload" />
-          <Script src="https://www.tiktok.com/embed.js" strategy="lazyOnload" />
-        </>
-      )}
+      {(isFirst || along?.hasInstagram) && <Script src="https://www.instagram.com/embed.js" strategy="lazyOnload" />}
+      {(isFirst || along?.hasTikTok) && <Script src="https://www.tiktok.com/embed.js" strategy="lazyOnload" />}
     </>
   );
 }

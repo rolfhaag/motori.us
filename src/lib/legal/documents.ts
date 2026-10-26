@@ -219,6 +219,8 @@ Following is optional and needs your confirmation by email. Every update email h
 
 We use essential storage for sign-in and a few remembered settings (for example a nomination link you opened). We don't use advertising or cross-site tracking cookies. Our analytics doesn't set advertising cookies.
 
+Some Builder pages embed a Builder's public Instagram or TikTok feed. Those embeds load scripts from Instagram or TikTok, which may set their own cookies and collect information about your visit under their own policies. They load only on pages that show such a feed.
+
 ## 7. Retention
 
 We keep account and Builder data while your account is active and afterward as needed for the purposes above and legal records. Records of agreements and email logs are kept to prove what was agreed and sent. You can ask us to delete your account and personal data; we may keep what the law or a legitimate dispute requires. Public pages and cached copies, previews and search results may take time to disappear.
@@ -326,11 +328,11 @@ export const LEGAL_DOCS: Record<LegalDocType, LegalDoc> = {
   },
   privacy: {
     type: "privacy",
-    version: "2026-10-19",
+    version: "2026-10-26",
     title: "Privacy Policy",
     path: "/privacy",
-    effectiveDate: "2026-10-19",
-    changeSummary: "First published version of the Privacy Policy.",
+    effectiveDate: "2026-10-26",
+    changeSummary: "Explains that some Builder pages embed public Instagram or TikTok feeds, which load those services' scripts.",
     markdown: PRIVACY,
   },
 };

@@ -384,6 +384,10 @@ export default function ApplyPage() {
                     onChange={(e) => setSocials(e.target.value)}
                     placeholder="@yourshop on Instagram"
                   />
+                  <p className="hint">
+                    Instagram and TikTok handles show as live feeds on your Builder page. Separate several with spaces
+                    (for TikTok use tiktok.com/@yourshop). Your accounts need to be public.
+                  </p>
                 </div>
 
                 <div className="field">
